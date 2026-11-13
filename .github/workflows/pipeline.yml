@@ -195,7 +195,7 @@ jobs:
           done; true
       - name: Build backend image
         if: steps.df.outputs.backend == 'true'
-        run: docker build -t "$BACKEND_IMAGE:${{ github.sha }}" backend
+        run: docker build -f backend/Dockerfile -t "$BACKEND_IMAGE:${{ github.sha }}" .   # root context: the image packages contracts/graphql
       - name: Build frontend image
         if: steps.df.outputs.frontend == 'true'
         run: docker build -t "$FRONTEND_IMAGE:${{ github.sha }}" frontend

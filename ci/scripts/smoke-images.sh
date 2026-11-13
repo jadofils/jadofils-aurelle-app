@@ -18,7 +18,7 @@ if docker image inspect "$backend" >/dev/null 2>&1; then
   if [[ -z "$user" ]] || [[ "$user" = "root" ]] || [[ "$user" = "0" ]]; then echo "::error::backend image runs as root"; exit 1; fi
 
   docker run -d --name smoke-db --network "$net" -e POSTGRES_DB=aurelle -e POSTGRES_USER=aurelle \
-    -e POSTGRES_PASSWORD="$db_password" postgres:17-alpine >/dev/null
+    -e POSTGRES_PASSWORD="$db_password" postgres:18.7-alpine >/dev/null
   for _ in $(seq 1 30); do docker exec smoke-db pg_isready -U aurelle >/dev/null 2>&1 && break; sleep 2; done
 
   docker run -d --name smoke-backend --network "$net" -p 18080:8080 \
