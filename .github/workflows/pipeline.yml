@@ -239,7 +239,14 @@ jobs:
             main)
               [[ "$HEAD_REF" == "staging" || "$HEAD_REF" == hotfix/* ]] || { echo "::error::Only 'staging' (or hotfix/*) may be merged into 'main' (got '$HEAD_REF')."; exit 1; } ;;
             testing)
-              [[ "$HEAD_REF" != "staging" && "$HEAD_REF" != "main" ]] || { echo "::error::Do not merge '$HEAD_REF' back into 'testing' through a PR; it already contains testing's history."; exit 1; } ;;
+              # Work branches are cut from testing and named feature/*, fix/* or chore/* (hotfix/* for back-ports).
+              # The two branches listed below were opened before this rule; remove them once merged.
+              if [[ "$HEAD_REF" =~ ^(feature|fix|chore|hotfix)/[a-z0-9][a-z0-9._-]*$ ]] \
+                 || [[ "$HEAD_REF" == "ci/github-actions-cicd" || "$HEAD_REF" == "backend/phase-0" ]]; then
+                echo "Branch name OK"
+              else
+                echo "::error::Branch '$HEAD_REF' must be named feature/<topic>, fix/<topic> or chore/<topic> (lowercase, cut from testing)."; exit 1
+              fi ;;
             *)
               ;;  # other targets (feature branches): no promotion rule
           esac

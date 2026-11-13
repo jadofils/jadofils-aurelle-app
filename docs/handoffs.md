@@ -2,6 +2,10 @@
 
 Newest first. Each entry: date, from → to, what is ready, where, how to run/verify, known limits.
 
+## 2026-11-13 — coordinator → all: branch names and Sonar scope
+- **Work branches:** always cut from `origin/testing`, named `feature/<topic>`, `fix/<topic>` or `chore/<topic>` (lowercase, `-` separated). PRs go to `testing`. CI (`promotion-guard`) rejects other names. `ci/github-actions-cicd` and `backend/phase-0` are allowed until merged; use the new names for everything after.
+- **SonarQube Cloud:** `main`, `staging`, `testing` are long-lived branches; scope and test paths are explicit in `sonar-project.properties` (backend Maven/Java and frontend Flutter/Dart, plus CI scripts).
+
 ## 2026-11-13 — coordinator → all: branch model testing → staging → main
 - Long-lived branches: `testing` (dev, deploys to the testing environment), `staging` (deploys to staging), `main` (production, owner approval). Each GitHub environment only accepts its own branch.
 - **Open every PR against `testing`**, from a branch named `<role>/<task>` (e.g. `backend/phase-0`, `frontend/design-system`). Base new work on `origin/testing`. Only `testing` → `staging` and `staging` → `main` promotions are allowed (CI job `promotion-guard`); `hotfix/*` may go to `main` and must also be merged into `testing`.

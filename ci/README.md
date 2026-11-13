@@ -6,17 +6,18 @@ Workflow: [`.github/workflows/pipeline.yml`](../.github/workflows/pipeline.yml).
 
 | Branch | Role | Deploys to | Gets changes from (pull request only) |
 | --- | --- | --- | --- |
-| `testing` | development / integration | **testing** environment | `feature/*`, `<role>/*` (e.g. `backend/phase-0`), `hotfix/*` |
+| `testing` | development / integration | **testing** environment | `feature/*`, `fix/*`, `chore/*` (cut from `testing`), `hotfix/*` back-ports |
 | `staging` | release candidate | **staging** environment | `testing` only |
 | `main` | production | **production** environment (owner approval) | `staging` only, or `hotfix/*` for urgent fixes |
 
 ```
-feature/* ──PR──▶ testing ──PR──▶ staging ──PR──▶ main
+feature/* | fix/* | chore/* ──PR──▶ testing ──PR──▶ staging ──PR──▶ main
                      │               │              │
                  testing env     staging env   production env (approval)
 ```
 
-- The `promotion-guard` job fails any PR that breaks this order. A `hotfix/*` merged into `main` must also be merged into `testing` (same branch, second PR) so the fix flows forward again.
+- **Work branches** are always created from `testing` and named `feature/<topic>` (new behaviour), `fix/<topic>` (bug fix) or `chore/<topic>` (tooling, CI, docs, dependencies, refactoring), lowercase with `-`, e.g. `feature/identity-sign-in`, `fix/checkout-rounding`, `chore/pin-actions`. `hotfix/<topic>` is only for urgent production fixes cut from `main`.
+- The `promotion-guard` job fails any PR that breaks this order or naming. A `hotfix/*` merged into `main` must also be merged into `testing` (same branch, second PR) so the fix flows forward again.
 - Every push and PR runs the full CI below. Pushes to `testing`, `staging` and `main` additionally push images and deploy to the matching environment. Runs on those three branches are never cancelled mid-deploy.
 
 ```
@@ -52,7 +53,8 @@ Per environment configure:
 Images are pushed to GHCR as `ghcr.io/jadofils/aurelle-backend:<sha>` and `ghcr.io/jadofils/aurelle-frontend:<sha>` from `testing`, `staging` and `main`.
 
 ## SonarQube Cloud
-- Organization `jadofils`, project `jadofils_jadofils-aurelle-app`, configuration in [`sonar-project.properties`](../sonar-project.properties). A single project covers backend Java and frontend Dart.
+- Organization `jadofils`, project `jadofils_jadofils-aurelle-app`, configuration in [`sonar-project.properties`](../sonar-project.properties). A single project covers the backend (Maven, Java 21) and the frontend (Flutter, Dart). Scope: production code `backend/src/main`, `frontend/lib`, `ci/`, `.github/`, Dockerfiles; test code `backend/src/test`, `frontend/test`, `frontend/integration_test`, `tests/`; excluded: build output, Flutter platform folders, generated code, `docs/`, `contracts/`.
+- Branches: `main`, `staging` and `testing` are long-lived in SonarQube Cloud (each has its own history and new-code baseline); `feature/*`, `fix/*`, `chore/*` branches and PRs are short-lived and compared with their target.
 - Repository secret `SONAR_TOKEN` is set (never commit it; locally it lives in the git-ignored `.env`).
 - **Automatic Analysis must stay off** (Administration → Analysis Method), because the analysis runs from CI. It is ineligible anyway because Dart needs CI-based analysis.
 - The project uses the built-in **Sonar way** gate (new code: coverage ≥ 80 %, duplication ≤ 3 %, A ratings, hotspots reviewed). The current plan does not allow assigning a custom gate to the project, so the **95 % line / 90 % branch target is enforced in the backend and frontend jobs**, which fail before Sonar is reached. If the plan is upgraded, create gate "Aurelle 95" (see `.claude/rules/quality-gates-ci.md`) and assign it.
