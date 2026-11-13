@@ -1,0 +1,5 @@
+# Production profile overrides. Activate with SPRING_PROFILES_ACTIVE=prod.
+logging:
+  structured:
+    format:
+      console: ecs

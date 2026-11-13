@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: aurelle
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    # No credential defaults are committed. Set AURELLE_DB_* in the environment.
+    url: ${AURELLE_DB_URL:jdbc:postgresql://localhost:5432/aurelle}
+    username: ${AURELLE_DB_USER:aurelle}
+    password: ${AURELLE_DB_PASSWORD:}
+    hikari:
+      # One bounded pool per process. Size it against (replicas x pool) <= the DB connection budget.
+      maximum-pool-size: ${AURELLE_DB_POOL_MAX:10}
+      minimum-idle: ${AURELLE_DB_POOL_MIN_IDLE:2}
+      connection-timeout: 2000
+      validation-timeout: 1000
+      max-lifetime: 1800000
+      leak-detection-threshold: 10000
+      data-source-properties:
+        # Server-side guards so no statement or lock wait runs unbounded.
+        options: "-c statement_timeout=${AURELLE_DB_STATEMENT_TIMEOUT_MS:5000} -c lock_timeout=${AURELLE_DB_LOCK_TIMEOUT_MS:2000} -c idle_in_transaction_session_timeout=${AURELLE_DB_IDLE_TX_TIMEOUT_MS:15000}"
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  graphql:
+    http:
+      path: /graphql
+    websocket:
+      path: /graphql
+      connection-init-timeout: 10s
+
+server:
+  shutdown: graceful
+  max-http-request-header-size: 16KB
+  tomcat:
+    connection-timeout: 5s
+    max-swallow-size: 2MB
+    accept-count: 100
+    threads:
+      max: 200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
