@@ -13,7 +13,8 @@ RUN chmod +x mvnw && ./mvnw -B -ntp -q dependency:go-offline
 COPY contracts/graphql/ /workspace/contracts/graphql/
 COPY backend/src/ src/
 RUN ./mvnw -B -ntp -q -DskipTests package \
- && java -Djarmode=tools -jar target/aurelle-backend-*.jar extract --layers --launcher --destination /workspace/extracted
+ && java -Djarmode=tools -jar target/aurelle-backend-*.jar \
+      extract --layers --launcher --destination /workspace/extracted
 
 # ---- runtime -------------------------------------------------------------------------------
 FROM eclipse-temurin:21.0.13_9-jre-alpine

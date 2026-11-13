@@ -18,8 +18,9 @@ class MigrationIT extends IntegrationTest {
     JdbcClient jdbc;
 
     @Test
-    void seedsExactlyOneDefaultOrganizationWithSettings() {
-        assertThat(jdbc.sql("select count(*) from organization").query(Long.class).single()).isEqualTo(1);
+    void migrationsCreateTheDefaultOrganizationWithSettings() {
+        assertThat(jdbc.sql("select count(*) from organization where slug = 'aurelle' and archived_at is null")
+            .query(Long.class).single()).isEqualTo(1);
         assertThat(jdbc.sql("""
                 select s.free_shipping_threshold_minor from shop_setting s
                   join organization o on o.id = s.organization_id where o.slug = 'aurelle'
@@ -28,7 +29,7 @@ class MigrationIT extends IntegrationTest {
 
     @Test
     void primaryKeysAreUuidV7() {
-        UUID id = jdbc.sql("select id from organization").query(UUID.class).single();
+        UUID id = jdbc.sql("select id from organization where slug = 'aurelle'").query(UUID.class).single();
         assertThat(id.version()).isEqualTo(7);
     }
 

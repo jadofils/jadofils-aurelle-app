@@ -40,8 +40,8 @@ class GraphQlApiIT extends IntegrationTest {
             .containsEntry("returnWindowDays", 30)
             .containsEntry("tagline", "Made to be worn on repeat.")
             .containsEntry("guestCheckoutEnabled", true)
-            .containsEntry("supportEmail", null)
-            .containsEntry("supportPhone", null)
+            .containsEntry("supportEmail", "hello@example.test")
+            .containsEntry("supportPhone", "+447700900001")
             .containsEntry("freeShippingThreshold", Map.of("amountMinor", 15000, "currency", "USD"));
     }
 

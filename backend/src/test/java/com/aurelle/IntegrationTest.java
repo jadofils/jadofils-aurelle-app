@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestClient;
  * container, and run a real server on a random port so GraphQL goes through Tomcat and security.
  */
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import({PostgresTestConfiguration.class, SchemaReportCapture.class})
 public abstract class IntegrationTest {

@@ -1,6 +1,13 @@
 spring:
   application:
     name: aurelle
+  profiles:
+    # Environments that load test seed data (db/seed). `prod` is deliberately absent.
+    group:
+      dev: seed
+      test: seed
+      testing: seed
+      staging: seed
   lifecycle:
     timeout-per-shutdown-phase: 20s
   datasource:
