@@ -9,13 +9,17 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Application-wide HTTP security baseline: deny by default.
  *
- * <p>Only the liveness/readiness probes are public. The authentication mechanism is an open
- * decision (docs/decisions.md D5) and is added by the identity slice. Until then, every other
- * request is rejected. Per-operation authorization is enforced again at use-case/resolver
- * boundaries; this filter chain is not the only control.
+ * <p>Public: the liveness/readiness probes and the GraphQL endpoint. {@code /graphql} must be
+ * reachable because public queries (serverInfo, shopSettings, catalog browse) need no account.
+ * Every GraphQL operation is authorized in its use case/resolver. That is the real control.
+ *
+ * <p>CSRF is not applied to {@code /graphql} while no cookie-based session exists. Decision D5
+ * (Phase 1) revisits this: if web sessions use cookies, CSRF protection is added for them.
  */
 @Configuration(proxyBeanMethods = false)
 class SecurityConfiguration {
+
+    static final String GRAPHQL_PATH = "/graphql";
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -23,7 +27,10 @@ class SecurityConfiguration {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness")
                 .permitAll()
+                .requestMatchers(GRAPHQL_PATH)
+                .permitAll()
                 .anyRequest().denyAll())
+            .csrf(csrf -> csrf.ignoringRequestMatchers(GRAPHQL_PATH))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())

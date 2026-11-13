@@ -1,7 +1,7 @@
 # Local development database only. Requires AURELLE_DB_PASSWORD to be set in your shell.
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18.7-alpine
     environment:
       POSTGRES_DB: aurelle
       POSTGRES_USER: aurelle
@@ -9,6 +9,6 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - aurelle-pg:/var/lib/postgresql/data
+      - aurelle-pg:/var/lib/postgresql
 volumes:
   aurelle-pg:

@@ -1,0 +1,8 @@
+.git
+**/target
+**/build
+frontend
+.claude
+**/.env
+**/.env.*
+tests

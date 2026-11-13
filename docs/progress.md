@@ -4,7 +4,7 @@ Each agent updates its own cells. Status: `todo` · `doing` · `blocked (by …)
 
 | Phase | Contract | Backend | Frontend | Quality | Closed |
 | --- | --- | --- | --- | --- | --- |
-| 0 Foundations | draft | todo | todo | todo | |
+| 0 Foundations | review (00-common, errors) | doing (PR `backend/phase-0`) | todo | todo | |
 | 1 Identity + authorization | draft | todo | todo | todo | |
 | 2 Catalog + media | draft | todo | todo | todo | |
 | 3 Inventory | draft | todo | todo | todo | |

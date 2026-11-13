@@ -3,3 +3,10 @@ logging:
   structured:
     format:
       console: ecs
+
+spring:
+  graphql:
+    schema:
+      # Clients generate types from contracts/graphql, so live introspection is not needed in production.
+      introspection:
+        enabled: false

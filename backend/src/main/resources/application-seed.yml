@@ -1,0 +1,5 @@
+# Test seed data (owner rule, .claude/rules/data-model.md "Test seed data").
+# Active only through the profile groups in application.yml (dev, test, testing, staging). Never in prod.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

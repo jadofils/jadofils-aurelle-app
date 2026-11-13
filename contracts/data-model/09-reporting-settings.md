@@ -17,6 +17,10 @@ Modules: `reporting`, `settings`. Shop settings are needed from Phase 2 (currenc
 | `guest_checkout_enabled` | boolean | Y | |
 | `reviews_require_moderation` | boolean | Y | |
 
+Implemented in phase 0 (`V0002__shop_setting.sql`, module `settings`); one row per organization (unique `organization_id`). Only the public subset is exposed (`Query.shopSettings`).
+
+Seed (`db/seed/R__seed_00_organization.sql`, profiles dev/test/testing/staging): 4 rows. `aurelle` default from `V0002` (prototype values: USD `$`, free shipping 15000, 30-day returns); `…0202` Aurelle Kids, every field filled (RWF, social links, moderation off); `…0203` Aurelle Accra, required fields only (no free-shipping threshold); `…0204` Pop-up, boundaries (threshold 0 = always free, 0-day returns, guest checkout off). Organizations: `aurelle`, `…0102` all optional fields, `…0103` required only, `…0104` archived. UUID prefix `01970000-0000-7000-8000-000000000`.
+
 ## Read models (documented freshness required for each)
 - `daily_sales` (date, location, orders, units, revenue, discounts, shipping, COGS) — refreshed after commit via events or every 5 min; dashboard shows "as of".
 - `product_performance` (product, period, units, revenue, margin, return rate, views later).
