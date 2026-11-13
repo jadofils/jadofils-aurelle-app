@@ -1,0 +1,76 @@
+# Aurelle GraphQL contract — common types. Status: draft (phase 0).
+# Conventions: ../../.claude/rules/contracts.md. Errors: ../errors.md.
+
+"ISO-8601 instant in UTC, e.g. 2026-11-13T09:30:00Z"
+scalar DateTime
+"ISO-8601 calendar date, e.g. 2026-11-13"
+scalar Date
+"64-bit signed integer (money in minor units, counts)"
+scalar Long
+
+"Exact money. Never use floating point."
+type Money {
+  "Amount in the currency's minor unit (e.g. cents)."
+  amountMinor: Long!
+  "ISO 4217 code, e.g. USD, RWF, GHS."
+  currency: String!
+}
+
+input MoneyInput {
+  amountMinor: Long!
+  currency: String!
+}
+
+"Relay-style cursor pagination info."
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+"Expected business failure returned inside a mutation payload."
+type UserError {
+  "Stable code from contracts/errors.md, e.g. EMAIL_TAKEN."
+  code: String!
+  "Safe, human-readable message."
+  message: String!
+  "Path to the input field at fault, e.g. [\"input\", \"email\"]."
+  field: [String!]
+}
+
+enum SortDirection {
+  ASC
+  DESC
+}
+
+enum ThemePreference {
+  SYSTEM
+  DARK
+  LIGHT
+}
+
+"Public, non-sensitive information about the running API."
+type ServerInfo {
+  apiVersion: String!
+  "Contract phase currently frozen, e.g. 2."
+  contractPhase: Int!
+}
+
+"Public shop configuration needed by every client (no auth required)."
+type ShopSettings {
+  shopName: String!
+  currency: String!
+  currencyDisplaySymbol: String
+  freeShippingThreshold: Money
+  returnWindowDays: Int!
+  tagline: String
+  supportEmail: String
+  supportPhone: String
+  guestCheckoutEnabled: Boolean!
+}
+
+type Query {
+  serverInfo: ServerInfo!
+  shopSettings: ShopSettings!
+}

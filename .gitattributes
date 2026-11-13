@@ -1,0 +1,5 @@
+# Shell scripts and workflows must keep LF endings on Linux runners
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+mvnw text eol=lf

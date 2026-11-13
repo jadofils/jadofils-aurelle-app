@@ -1,0 +1,269 @@
+# Aurelle CI/CD
+# Every push / pull request: build -> unit + integration tests -> secret scan -> SAST -> SonarQube Cloud
+#   (quality gate waits and fails the run) -> 95 % coverage checks -> images -> smoke test -> Trivy.
+# Push to main additionally: push images -> testing -> staging -> production (manual approval).
+# Rules: .claude/rules/quality-gates-ci.md (local), ci/README.md (committed).
+name: Pipeline
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/aurelle-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/aurelle-frontend
+  MIN_LINE_COVERAGE: '95'
+  MIN_BRANCH_COVERAGE: '90'
+
+jobs:
+  # ---------------------------------------------------------------- backend
+  backend:
+    name: Backend build, unit + integration tests
+    runs-on: ubuntu-latest   # Linux runner: Testcontainers needs Linux Docker
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build and test (Surefire *Test + Failsafe *IT + JaCoCo)
+        working-directory: backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp verify
+      - name: Enforce coverage (>= 95 % line, >= 90 % branch)
+        run: bash ci/scripts/check-jacoco.sh backend/target/site/jacoco/jacoco.xml
+      - name: Upload backend reports and classes for Sonar
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: |
+            backend/target/classes
+            backend/target/test-classes
+            backend/target/site/jacoco
+            backend/target/surefire-reports
+            backend/target/failsafe-reports
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------- frontend
+  frontend:
+    name: Frontend analyze + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.0   # Dart 3.12.0; same as ghcr.io/cirruslabs/flutter:3.44.0 used locally
+          cache: true
+      - run: flutter pub get
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Static analysis
+        run: flutter analyze --fatal-infos
+      - name: Tests with coverage
+        run: flutter test --coverage
+      - name: Enforce coverage (>= 95 % line)
+        working-directory: .
+        run: bash ci/scripts/check-lcov.sh frontend/coverage/lcov.info
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------- security
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: gitleaks (full history)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --redact --verbose
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Semgrep
+        run: >
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.99.0
+          semgrep scan --error --metrics=off
+          --config p/java --config p/secrets --config p/dockerfile --config p/github-actions
+          --exclude ../aurelle
+
+  # ---------------------------------------------------------------- quality gate
+  sonar:
+    name: SonarQube Cloud analysis + quality gate
+    needs: [backend, frontend]
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0   # full history for accurate new-code detection
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: backend/target
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: SonarQube Scan (waits for the quality gate)
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  # ---------------------------------------------------------------- images
+  images:
+    name: Build images, smoke test, Trivy
+    needs: [sonar, secret-scan, sast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      pushed: ${{ steps.push.outputs.pushed }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Detect Dockerfiles
+        id: df
+        run: |
+          echo "backend=$([ -f backend/Dockerfile ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$([ -f frontend/Dockerfile ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Missing Dockerfiles (phase 0 work)
+        if: steps.df.outputs.backend != 'true' || steps.df.outputs.frontend != 'true'
+        run: echo "::warning::backend/Dockerfile=${{ steps.df.outputs.backend }} frontend/Dockerfile=${{ steps.df.outputs.frontend }}. Images that do not exist yet are skipped and nothing can be deployed."
+      - name: Lint Dockerfiles (hadolint)
+        run: |
+          for f in backend/Dockerfile frontend/Dockerfile; do
+            [ -f "$f" ] && docker run --rm -i hadolint/hadolint:v2.12.0 < "$f"
+          done; true
+      - name: Build backend image
+        if: steps.df.outputs.backend == 'true'
+        run: docker build -t "$BACKEND_IMAGE:${{ github.sha }}" backend
+      - name: Build frontend image
+        if: steps.df.outputs.frontend == 'true'
+        run: docker build -t "$FRONTEND_IMAGE:${{ github.sha }}" frontend
+      - name: Image smoke test
+        run: bash ci/scripts/smoke-images.sh "${{ github.sha }}"
+      - name: Trivy image scan (fail on fixable HIGH/CRITICAL)
+        run: |
+          for img in "$BACKEND_IMAGE:${{ github.sha }}" "$FRONTEND_IMAGE:${{ github.sha }}"; do
+            docker image inspect "$img" >/dev/null 2>&1 || continue
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+              image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$img"
+          done
+      - name: Push images (main only)
+        id: push
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          pushed=false
+          for img in "$BACKEND_IMAGE" "$FRONTEND_IMAGE"; do
+            docker image inspect "$img:${{ github.sha }}" >/dev/null 2>&1 || continue
+            docker push "$img:${{ github.sha }}"; pushed=true
+          done
+          echo "pushed=$pushed" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------- delivery
+  deploy-testing:
+    name: Deploy to testing + E2E
+    needs: images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: testing
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Deploy
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
+        run: bash ci/scripts/deploy.sh testing "${{ github.sha }}"
+      - name: E2E + load smoke against testing
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: bash ci/scripts/e2e.sh testing
+
+  deploy-staging:
+    name: Deploy to staging + smoke
+    needs: deploy-testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Deploy
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
+        run: bash ci/scripts/deploy.sh staging "${{ github.sha }}"
+      - name: Smoke against staging
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: bash ci/scripts/e2e.sh staging smoke
+
+  deploy-production:
+    name: Deploy to production (requires approval)
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Deploy
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
+        run: bash ci/scripts/deploy.sh production "${{ github.sha }}"
+      - name: Smoke against production
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: bash ci/scripts/e2e.sh production smoke

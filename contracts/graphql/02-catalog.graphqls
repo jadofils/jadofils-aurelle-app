@@ -1,0 +1,240 @@
+# Aurelle GraphQL contract — catalog and media. Status: draft (phase 2).
+# Data model: ../data-model/02-catalog-media.md. Public read operations need no sign-in.
+
+enum ProductStatus { DRAFT ACTIVE ARCHIVED }
+enum MediaRole { PRIMARY BACK DETAIL CUTOUT LIFESTYLE }
+enum StockState { IN_STOCK LOW_STOCK SOLD_OUT }
+
+enum ProductSortField {
+  RELEVANCE
+  NEWEST
+  PRICE
+  NAME
+  RATING
+}
+
+type Category {
+  id: ID!
+  slug: String!
+  name: String!
+  description: String
+  image: Image
+  parent: Category
+  children: [Category!]!
+  productCount: Int!
+}
+
+type Brand { id: ID! slug: String! name: String! logo: Image }
+
+type ProductType { id: ID! key: String! name: String! isFootwear: Boolean! }
+
+type SizeValue {
+  id: ID!
+  label: String!
+  sortOrder: Int!
+  ageMin: Int
+  ageMax: Int
+  heightMinCm: Int
+  heightMaxCm: Int
+}
+
+type Image {
+  id: ID!
+  url(width: Int): String!
+  width: Int!
+  height: Int!
+  altText: String
+}
+
+type ProductMedia { image: Image! role: MediaRole! colorId: ID }
+
+type ProductColor {
+  id: ID!
+  name: String!
+  hex: String!
+  swatch: Image
+  "False when every size in this colour is sold out (cannot be picked)."
+  available: Boolean!
+}
+
+type ProductVariant {
+  id: ID!
+  sku: String!
+  color: ProductColor!
+  size: SizeValue!
+  price: Money!
+  "Public availability; exact counts are staff-only (inventory phase)."
+  stockState: StockState!
+  "Requires permission: catalog.product.read_cost"
+  cost: Money
+}
+
+type SizeGuide { id: ID! name: String! bodyMarkdown: String! sizes: [SizeValue!]! }
+
+type Product {
+  id: ID!
+  slug: String!
+  name: String!
+  subtitle: String
+  descriptionMarkdown: String!
+  type: ProductType!
+  category: Category!
+  brand: Brand
+  audience: Audience!
+  badge: String
+  price: Money!
+  compareAtPrice: Money
+  "Requires permission: catalog.product.read_cost"
+  cost: Money
+  material: String
+  composition: String
+  careInstructions: String
+  fitNotes: String
+  collection: String
+  colors: [ProductColor!]!
+  sizes: [SizeValue!]!
+  variants: [ProductVariant!]!
+  media(colorId: ID, roles: [MediaRole!]): [ProductMedia!]!
+  sizeGuide: SizeGuide
+  stockState: StockState!
+  ratingAverage: Float
+  ratingCount: Int!
+  launchAt: DateTime
+  "Staff only (catalog.product.write): DRAFT/ARCHIVED products are invisible to customers."
+  status: ProductStatus!
+  hidden: Boolean!
+  version: Long!
+}
+
+type ProductEdge { cursor: String! node: Product! }
+type ProductConnection { edges: [ProductEdge!]! pageInfo: PageInfo! totalCount: Int! }
+
+input ProductFilter {
+  search: String
+  audiences: [Audience!]
+  categoryIds: [ID!]
+  typeIds: [ID!]
+  brandIds: [ID!]
+  colorNames: [String!]
+  sizeLabels: [String!]
+  minPrice: Long
+  maxPrice: Long
+  inStockOnly: Boolean = false
+  onSaleOnly: Boolean = false
+  "Staff only; customers always see ACTIVE, not hidden, launched."
+  statuses: [ProductStatus!]
+}
+
+input ProductSort {
+  field: ProductSortField! = RELEVANCE
+  direction: SortDirection! = DESC
+}
+
+"Size finder: a starting guide, never a promise."
+input SizeSuggestionInput {
+  productId: ID!
+  ageYears: Int
+  heightCm: Int
+  weightKg: Float
+  usualSize: String
+}
+
+type SizeSuggestion {
+  size: SizeValue
+  confidence: String!
+  explanation: String!
+}
+
+extend type Query {
+  categories(audience: Audience): [Category!]!
+  brands: [Brand!]!
+  productTypes: [ProductType!]!
+  product(id: ID, slug: String): Product
+  "Max first = 100."
+  products(first: Int = 25, after: String, filter: ProductFilter, sort: ProductSort): ProductConnection!
+  "Products for the 'Walk the rail' view: in-stock colours only."
+  railProducts(audience: Audience, first: Int = 40): [Product!]!
+  suggestSize(input: SizeSuggestionInput!): SizeSuggestion!
+}
+
+# ---------- staff mutations ----------
+
+input ColorInput { id: ID name: String! hex: String! sortOrder: Int }
+
+input VariantInput {
+  id: ID
+  colorName: String!
+  sizeLabel: String!
+  sku: String
+  barcode: String
+  priceOverride: MoneyInput
+  costOverride: MoneyInput
+  active: Boolean = true
+}
+
+input UpsertProductInput {
+  productId: ID
+  expectedVersion: Long
+  name: String!
+  slug: String
+  subtitle: String
+  descriptionMarkdown: String!
+  typeId: ID!
+  categoryId: ID!
+  brandId: ID
+  audience: Audience!
+  badge: String
+  price: MoneyInput!
+  compareAtPrice: MoneyInput
+  cost: MoneyInput
+  material: String
+  composition: String
+  careInstructions: String
+  fitNotes: String
+  collection: String
+  sizeScaleId: ID!
+  sizeGuideId: ID
+  colors: [ColorInput!]!
+  variants: [VariantInput!]!
+  tags: [String!]
+  status: ProductStatus = DRAFT
+  hidden: Boolean = false
+  launchAt: DateTime
+}
+
+type ProductPayload { product: Product errors: [UserError!]! }
+
+"Signed upload: client PUTs the bytes to uploadUrl, then calls attachProductMedia."
+input RequestUploadInput { fileName: String! contentType: String! byteSize: Int! }
+type UploadTicket { mediaId: ID! uploadUrl: String! headers: [UploadHeader!]! expiresAt: DateTime! }
+type UploadHeader { name: String! value: String! }
+type UploadTicketPayload { ticket: UploadTicket errors: [UserError!]! }
+
+input AttachProductMediaInput {
+  productId: ID!
+  mediaId: ID!
+  role: MediaRole!
+  colorId: ID
+  altText: String!
+  sortOrder: Int
+}
+
+input UpsertCategoryInput { categoryId: ID name: String! slug: String parentId: ID description: String sortOrder: Int active: Boolean = true }
+type CategoryPayload { category: Category errors: [UserError!]! }
+
+extend type Mutation {
+  "Requires permission: catalog.product.write"
+  upsertProduct(input: UpsertProductInput!): ProductPayload!
+  "Requires permission: catalog.product.write"
+  archiveProduct(productId: ID!, expectedVersion: Long!): ProductPayload!
+  "Requires permission: catalog.product.write"
+  setProductHidden(productId: ID!, hidden: Boolean!, expectedVersion: Long!): ProductPayload!
+  "Requires permission: media.upload"
+  requestMediaUpload(input: RequestUploadInput!): UploadTicketPayload!
+  "Requires permission: catalog.product.write"
+  attachProductMedia(input: AttachProductMediaInput!): ProductPayload!
+  "Requires permission: catalog.product.write"
+  detachProductMedia(productId: ID!, mediaId: ID!): ProductPayload!
+  "Requires permission: catalog.category.write"
+  upsertCategory(input: UpsertCategoryInput!): CategoryPayload!
+}
