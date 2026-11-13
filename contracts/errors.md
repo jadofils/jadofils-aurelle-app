@@ -31,7 +31,7 @@ Initial codes (backend adds more per phase, here):
 | `PASSWORD_TOO_WEAK` | `signUp`, `resetPassword`, `changePassword`, `acceptStaffInvite` | Shorter than 10 characters or found in a breached-password list |
 | `INVALID_CREDENTIALS` | `signIn`, `changePassword` | Same message whether the identifier or the password is wrong, and for locked accounts |
 | `ACCOUNT_INACTIVE` | `signIn` | Correct password, but the shop deactivated the account (only revealed after a correct password) |
-| `TOKEN_INVALID_OR_EXPIRED` | `refreshSession`, `resetPassword`, `verifyEmail`, `acceptStaffInvite` | Unknown, used, expired or reused token |
+| `TOKEN_INVALID_OR_EXPIRED` | `refreshSession`, `resetPassword`, `verifyEmail`, `acceptStaffInvite` | Unknown, used, expired or reused token, or a wrong 6-digit code (same message; the 5th wrong code burns the token) |
 | `LAST_OWNER_REQUIRED` | `updateStaffMember`, `setStaffRoles` | The change would leave no active owner |
 | `ROLE_CYCLE` | `upsertRole` | Inheritance would form a cycle |
 | `SYSTEM_ROLE_PROTECTED` | `upsertRole`, `archiveRole` | System roles cannot be archived or re-keyed |

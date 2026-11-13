@@ -265,8 +265,29 @@ type AuthPayload {
 
 input RevokeSessionInput { sessionId: ID! }
 input RequestPasswordResetInput { "Email or E.164 phone." identifier: String! }
-input ResetPasswordInput { token: String! newPassword: String! }
-input VerifyEmailInput { token: String! }
+"""
+Reset with the link token, or with identifier + the 6-digit code from the same e-mail.
+Exactly one of `token` or (`identifier` and `code`) (VALIDATION_FAILED otherwise).
+"""
+input ResetPasswordInput {
+  "From the link in the e-mail."
+  token: String
+  "Email or E.164 phone the code was sent to."
+  identifier: String
+  "6 digits. At most 5 wrong attempts, then the code and link stop working."
+  code: String
+  newPassword: String!
+}
+
+"""
+Verify with the link token (works signed out), or with the 6-digit code (signed-in viewer only).
+Exactly one of `token` or `code` (VALIDATION_FAILED otherwise).
+"""
+input VerifyEmailInput {
+  token: String
+  "6 digits. At most 5 wrong attempts, then the code and link stop working."
+  code: String
+}
 input ChangePasswordInput { currentPassword: String! newPassword: String! }
 
 input AcceptStaffInviteInput {
@@ -367,12 +388,12 @@ type Mutation {
   revokeSession(input: RevokeSessionInput!): AckPayload!
   "Rotates the refresh token. TOKEN_INVALID_OR_EXPIRED when it is unknown, expired or reused."
   refreshSession(input: RefreshSessionInput!): AuthPayload!
-  "Enumeration-safe: always ok=true. Sends a single-use link valid for 30 minutes if the account exists."
+  "Enumeration-safe: always ok=true. If the account exists, e-mails a 6-digit code and a link, both single-use and valid for 30 minutes."
   requestPasswordReset(input: RequestPasswordResetInput!): AckPayload!
   "Single use. Signs out every other session of the account."
   resetPassword(input: ResetPasswordInput!): AckPayload!
   verifyEmail(input: VerifyEmailInput!): AckPayload!
-  "Signed-in viewer only. Rate limited."
+  "Signed-in viewer only. Rate limited. E-mails a new 6-digit code and link (24 hours); older ones stop working."
   resendEmailVerification: AckPayload!
   "Signs out every other session of the viewer."
   changePassword(input: ChangePasswordInput!): AckPayload!

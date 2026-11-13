@@ -122,12 +122,14 @@ Expired and revoked sessions are deleted after 30 days (retention).
 | --- | --- | --- | --- | --- |
 | `user_account_id` | uuid → user_account | Y | | |
 | `purpose` | text check (`EMAIL_VERIFY`,`PASSWORD_RESET`,`STAFF_INVITE`) | Y | | |
-| `token_hash` | bytea unique | Y | | SHA-256 of the token; the token itself is never stored or logged |
+| `token_hash` | bytea unique | Y | | SHA-256 of the link token (256-bit random); the token itself is never stored or logged |
+| `code_hash` | bytea | - | | HMAC-SHA-256 (server key) of the 6-digit code sent in the same e-mail; null for `STAFF_INVITE` (link only) |
+| `failed_attempts` | smallint default 0, 0–5 | Y | | wrong codes; at 5 the token is burned (`used_at` set) |
 | `expires_at` | timestamptz | Y | | reset 30 min, verify 24 h, invite 72 h |
 | `used_at` | timestamptz | - | | single use |
 | `requested_ip_hash` | bytea | - | | abuse analysis (salted hash, not the IP) |
 
-Requesting a new token of the same purpose invalidates older unused ones.
+Requesting a new token of the same purpose invalidates older unused ones. Each e-mail carries both a link and a 6-digit code (decision D28); either completes the action once.
 
 ## Authorization (data, not enums)
 | Table | Fields | Notes |
