@@ -1,5 +1,6 @@
 package com.aurelle.identity.internal;
 
+import com.aurelle.common.EmailAddresses;
 import com.aurelle.common.UserError;
 import java.util.List;
 import java.util.Locale;
@@ -12,7 +13,6 @@ final class Credentials {
 
     static final int MIN_PASSWORD = 10;
     static final int MAX_PASSWORD = 128;
-    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final Pattern E164 = Pattern.compile("^\\+[1-9][0-9]{6,14}$");
     /**
      * Small offline deny-list of the most common breached passwords. A full breached-password check
@@ -26,7 +26,7 @@ final class Credentials {
     }
 
     static boolean isEmail(String value) {
-        return value != null && value.length() <= 254 && EMAIL.matcher(value).matches();
+        return EmailAddresses.isValid(value);
     }
 
     static boolean isPhone(String value) {
