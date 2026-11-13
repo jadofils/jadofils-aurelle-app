@@ -19,7 +19,7 @@ Status values: **Decided** · **Proposed** (default used in code; easy to change
 | D13 | Flutter state management | Decided | Riverpod (`flutter_riverpod` 3.x) | Required by the project brief |
 | D14 | Fonts | Proposed | Bundle Fraunces + Manrope as assets (no runtime Google Fonts fetch) | Not bundled yet. The theme falls back to platform fonts |
 | D15 | Multi-tenancy | Open | Authorization scopes are modelled generically (tenant/org/location) | Is this one shop or many? Data model seeds one `organization` + one `location` |
-| D16 | CI/CD | Decided | GitHub Actions (`.github/workflows/pipeline.yml`); `main` → testing → staging → production (owner approval); images in GHCR | Owner's choice. See `ci/README.md` |
+| D16 | CI/CD and branches | Decided | GitHub Actions (`.github/workflows/pipeline.yml`). Branches `testing` (dev) → `staging` → `main` (production), promoted by PR; each deploys to its own environment; production needs owner approval; images in GHCR | Owner's choice. See `ci/README.md` |
 | D17 | Quality gate | Decided | SonarQube Cloud project `jadofils_jadofils-aurelle-app` on "Sonar way" + CI-enforced ≥ 95 % line / ≥ 90 % branch (backend and frontend) | Plan cannot assign a custom gate; the coverage floor is enforced by `ci/scripts/check-*.sh` |
 | D18 | Contract ownership | Decided | `contracts/` is the source of truth; backend packages `contracts/graphql` as its schema; frontend generates types from it | `.claude/rules/contracts.md` |
 | D19 | Load testing tool | Proposed | k6 (HTTP + WebSocket), profiles smoke/load/stress/spike/soak | Quality agent may revise |

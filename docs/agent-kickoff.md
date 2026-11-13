@@ -1,6 +1,6 @@
 # Agent kickoff prompts
 
-Open one Claude Code session per agent in `aurelle-app/` and paste the matching prompt. The full brief for each role is in `.claude/agents/`.
+Open one Claude Code session per agent in `aurelle-app/` and paste the matching prompt. The full brief for each role is in `.claude/agents/`. Every agent works in its own git worktree, bases branches on `origin/testing` and opens PRs against `testing` (branch model: `testing` → `staging` → `main`, see `ci/README.md`).
 
 ## Backend (already running)
 > You are the backend agent for Aurelle. Read `.claude/agents/backend-engineer.md` and follow it. Start with your Phase 0 tasks and freeze the `00-common` + Phase 1 contracts as early as possible. Keep `docs/progress.md` and `docs/handoffs.md` up to date. Continue phase by phase without waiting for me unless a decision is genuinely mine (payment provider, tax, countries, multi-tenancy).

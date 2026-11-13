@@ -1,7 +1,9 @@
 # Aurelle CI/CD
 # Every push / pull request: build -> unit + integration tests -> secret scan -> SAST -> SonarQube Cloud
 #   (quality gate waits and fails the run) -> 95 % coverage checks -> images -> smoke test -> Trivy.
-# Push to main additionally: push images -> testing -> staging -> production (manual approval).
+# Branches: feature/* -> testing (dev) -> staging -> main (production), promoted by pull request.
+# Push to testing / staging / main additionally: push images -> deploy to that environment
+#   (production waits for the owner's approval).
 # Rules: .claude/rules/quality-gates-ci.md (local), ci/README.md (committed).
 name: Pipeline
 
@@ -15,7 +17,8 @@ on:
 
 concurrency:
   group: pipeline-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Never cancel a run on an environment branch mid-deploy.
+  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/testing","refs/heads/staging","refs/heads/main"]'), github.ref) }}
 
 permissions:
   contents: read
@@ -205,9 +208,9 @@ jobs:
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
               image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$img"
           done
-      - name: Push images (main only)
+      - name: Push images (testing, staging, main)
         id: push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && contains(fromJSON('["refs/heads/testing","refs/heads/staging","refs/heads/main"]'), github.ref)
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
           pushed=false
@@ -217,11 +220,35 @@ jobs:
           done
           echo "pushed=$pushed" >> "$GITHUB_OUTPUT"
 
+  # ---------------------------------------------------------------- promotion rules
+  # Branch model: feature/* -> testing (dev) -> staging -> main (production).
+  promotion-guard:
+    name: Promotion order (testing -> staging -> main)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check source branch for this target
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$BASE_REF" in
+            staging)
+              [[ "$HEAD_REF" == "testing" ]] || { echo "::error::Only 'testing' may be merged into 'staging' (got '$HEAD_REF')."; exit 1; } ;;
+            main)
+              [[ "$HEAD_REF" == "staging" || "$HEAD_REF" == hotfix/* ]] || { echo "::error::Only 'staging' (or hotfix/*) may be merged into 'main' (got '$HEAD_REF')."; exit 1; } ;;
+            testing)
+              [[ "$HEAD_REF" != "staging" && "$HEAD_REF" != "main" ]] || { echo "::error::Do not merge '$HEAD_REF' back into 'testing' through a PR; it already contains testing's history."; exit 1; } ;;
+          esac
+          echo "OK: $HEAD_REF -> $BASE_REF"
+
   # ---------------------------------------------------------------- delivery
+  # Each long-lived branch deploys to its own GitHub environment.
   deploy-testing:
     name: Deploy to testing + E2E
     needs: images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/testing'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -240,10 +267,11 @@ jobs:
         run: bash ci/scripts/e2e.sh testing
 
   deploy-staging:
-    name: Deploy to staging + smoke
-    needs: [images, deploy-testing]
+    name: Deploy to staging + E2E
+    needs: images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     environment:
       name: staging
       url: ${{ vars.BASE_URL }}
@@ -254,14 +282,15 @@ jobs:
           DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
           IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
         run: bash ci/scripts/deploy.sh staging "${{ github.sha }}"
-      - name: Smoke against staging
+      - name: E2E + load smoke against staging
         env:
           BASE_URL: ${{ vars.BASE_URL }}
-        run: bash ci/scripts/e2e.sh staging smoke
+        run: bash ci/scripts/e2e.sh staging
 
   deploy-production:
     name: Deploy to production (requires approval)
-    needs: [images, deploy-staging]
+    needs: images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:

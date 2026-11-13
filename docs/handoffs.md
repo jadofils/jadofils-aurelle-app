@@ -2,6 +2,11 @@
 
 Newest first. Each entry: date, from → to, what is ready, where, how to run/verify, known limits.
 
+## 2026-11-13 — coordinator → all: branch model testing → staging → main
+- Long-lived branches: `testing` (dev, deploys to the testing environment), `staging` (deploys to staging), `main` (production, owner approval). Each GitHub environment only accepts its own branch.
+- **Open every PR against `testing`**, from a branch named `<role>/<task>` (e.g. `backend/phase-0`, `frontend/design-system`). Base new work on `origin/testing`. Only `testing` → `staging` and `staging` → `main` promotions are allowed (CI job `promotion-guard`); `hotfix/*` may go to `main` and must also be merged into `testing`.
+- PR #1 (CI/CD) now targets `testing`.
+
 ## 2026-11-13 — coordinator → all: repository moved to jadofils/jadofils-aurelle-app
 - All CI/Sonar references now use repo `jadofils/jadofils-aurelle-app` and Sonar project `jadofils_jadofils-aurelle-app` (Sonar way gate). New `SONAR_TOKEN` secret set; environments `testing`, `staging`, `production` recreated (production: owner approval, `main`/`v*` only).
 - CI pins Flutter 3.44.0 (Dart 3.12.0), matching the Docker check below.
