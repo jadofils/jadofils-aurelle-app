@@ -16,11 +16,15 @@ import org.springframework.web.client.RestClient;
  * Base for integration tests (*IT). All subclasses share one Spring context and one PostgreSQL
  * container, and run a real server on a random port so GraphQL goes through Tomcat and security.
  */
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
+    properties = "aurelle.seed.password=" + IntegrationTest.SEED_PASSWORD)
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Import({PostgresTestConfiguration.class, SchemaReportCapture.class})
 public abstract class IntegrationTest {
+
+    /** Test-only password of every seeded account (not a secret; tests run against throwaway databases). */
+    public static final String SEED_PASSWORD = "Seed-Password-For-Tests-1";
 
     private static final ParameterizedTypeReference<Map<String, Object>> JSON_MAP =
         new ParameterizedTypeReference<>() { };
