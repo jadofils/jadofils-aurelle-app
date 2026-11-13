@@ -21,3 +21,21 @@ Unexpected or protocol-level failures. Messages are safe for users; no stack tra
 
 Initial codes (backend adds more per phase, here):
 `VALIDATION_FAILED`, `EMAIL_TAKEN`, `INVALID_CREDENTIALS` (same message whether email or password is wrong), `ACCOUNT_INACTIVE`, `TOKEN_INVALID_OR_EXPIRED`, `PASSWORD_TOO_WEAK`, `ROLE_CYCLE`, `OUT_OF_STOCK`, `INSUFFICIENT_STOCK`, `PRICE_CHANGED`, `PROMO_INVALID`, `PROMO_EXPIRED`, `PROMO_MIN_NOT_MET`, `PROMO_USAGE_LIMIT`, `POINTS_INSUFFICIENT`, `INVALID_STATUS_TRANSITION`, `PAYMENT_DECLINED`, `DUPLICATE_REQUEST`, `UPLOAD_REJECTED`.
+
+### Phase 1 (identity and authorization), status: review
+| Code | Returned by | Meaning |
+| --- | --- | --- |
+| `VALIDATION_FAILED` | any mutation | An input field is invalid; `field` points at it, `message` says how to fix it |
+| `EMAIL_TAKEN` / `PHONE_TAKEN` | `signUp`, `updateMyProfile`, `inviteStaffMember` | Identifier already belongs to an account (sign-up is rate limited to limit enumeration) |
+| `TERMS_NOT_ACCEPTED` | `signUp` | `acceptTerms` was false |
+| `PASSWORD_TOO_WEAK` | `signUp`, `resetPassword`, `changePassword`, `acceptStaffInvite` | Shorter than 10 characters or found in a breached-password list |
+| `INVALID_CREDENTIALS` | `signIn`, `changePassword` | Same message whether the identifier or the password is wrong, and for locked accounts |
+| `ACCOUNT_INACTIVE` | `signIn` | Correct password, but the shop deactivated the account (only revealed after a correct password) |
+| `TOKEN_INVALID_OR_EXPIRED` | `refreshSession`, `resetPassword`, `verifyEmail`, `acceptStaffInvite` | Unknown, used, expired or reused token, or a wrong 6-digit code (same message; the 5th wrong code burns the token) |
+| `LAST_OWNER_REQUIRED` | `updateStaffMember`, `setStaffRoles` | The change would leave no active owner |
+| `ROLE_CYCLE` | `upsertRole` | Inheritance would form a cycle |
+| `SYSTEM_ROLE_PROTECTED` | `upsertRole`, `archiveRole` | System roles cannot be archived or re-keyed |
+| `ROLE_IN_USE` | `archiveRole` | Role still has active bindings |
+| `UNKNOWN_PERMISSION` | `upsertRole`, `setStaffPermissionOverrides` | A permission key is not in the catalogue |
+
+Rate limits on `signIn`, `signUp`, `requestPasswordReset` and `resendEmailVerification` return the GraphQL error `RATE_LIMITED` with `extensions.retryAfterSeconds`.

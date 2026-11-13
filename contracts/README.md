@@ -18,7 +18,7 @@ The single source of truth shared by the backend, the Flutter client and the tes
 | --- | --- | --- |
 | `graphql/00-common.graphqls`, `errors.md` | 0 | review (served by the backend since phase 0) |
 | `events.md` | 0 | draft (reviewed with the first subscription, phase 3) |
-| `graphql/01-identity.graphqls`, `data-model/01-identity-access.md` | 1 | draft |
+| `graphql/01-identity.graphqls`, `data-model/01-identity-access.md`, Phase 1 codes in `errors.md` | 1 | review |
 | `graphql/02-catalog.graphqls`, `data-model/02-catalog-media.md` | 2 | draft |
 | `data-model/03-inventory.md` | 3 | draft (SDL written by backend at phase start) |
 | `data-model/04-cart-checkout-orders.md` | 4 | draft (SDL at phase start) |

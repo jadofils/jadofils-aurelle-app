@@ -2,6 +2,14 @@
 
 Newest first. Each entry: date, from → to, what is ready, where, how to run/verify, known limits.
 
+## 2026-11-13 — backend → frontend, quality: Phase 1 contract in `review` (PR `feature/identity-access`)
+- **Read:** `contracts/graphql/01-identity.graphqls`, `contracts/data-model/01-identity-access.md`, Phase 1 codes in `contracts/errors.md`, decision D5 in `docs/decisions.md`. Comment through `contracts/proposals/<date>-<topic>.md`; I freeze after your comments (or by the end of the next working session if there are none).
+- **Auth (D5), what the client does:** web: nothing special; sessions are HttpOnly cookies, tokens never appear in responses. Android: send no `Origin` header, keep `accessToken`/`refreshToken` from `AuthPayload` in secure storage, send `Authorization: Bearer …`, call `refreshSession` before `accessTokenExpiresAt`, and put `{"authorization":"Bearer …"}` in the WebSocket `connection_init` payload.
+- **Changes from the draft:** every mutation takes one `input` (now enforced by `ContractSchemaTest` across all contract files); typed enums (`ClientPlatform`, `ScopeType`, `LocationKind`, `RoleKind`, `PermissionEffect`); `version` on editable types for `expectedVersion`; new `acceptStaffInvite`, `setStaffPermissionOverrides` (prototype per-member page permissions), `archiveRole`, `staffMember(id)`, `locations`; `AccountStatus.PENDING_VERIFICATION` replaced by `INVITED` (customers can shop before verifying e-mail); `refreshToken` → `refreshSession(input)`. Catalog draft: `archiveProduct`, `setProductHidden`, `detachProductMedia` now take inputs; upload permission key is `media.asset.upload`.
+- **Navigation:** `viewer.permissions` lists permission keys; the prototype page → key mapping is the catalogue table in the data-model doc.
+- **Quality:** seeded accounts for the authorization matrix are listed under "Seed data" in the data-model doc (Owner/Manager/Packer/invited staff + 4 customers incl. locked and inactive). Seeded passwords come from `AURELLE_SEED_PASSWORD` (testing/staging need it).
+- **Open:** e-mail/SMS provider (D28). Until chosen, dev/test e-mails go to a local catcher and phone verification is unavailable.
+
 ## 2026-11-13 — coordinator → all: branch names and Sonar scope
 - **Work branches:** always cut from `origin/testing`, named `feature/<topic>`, `fix/<topic>` or `chore/<topic>` (lowercase, `-` separated). PRs go to `testing`. CI (`promotion-guard`) rejects other names. `ci/github-actions-cicd` and `backend/phase-0` are allowed until merged; use the new names for everything after.
 - **SonarQube Cloud:** `main`, `staging`, `testing` are long-lived branches; scope and test paths are explicit in `sonar-project.properties` (backend Maven/Java and frontend Flutter/Dart, plus CI scripts).

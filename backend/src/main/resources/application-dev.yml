@@ -1,0 +1,6 @@
+# Local development profile: ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+# Reads the git-ignored .env (repository root or backend/) for DB and mail settings.
+# Tests never use this profile, so they can never send real e-mail.
+spring:
+  config:
+    import: optional:file:../.env[.properties],optional:file:.env[.properties]

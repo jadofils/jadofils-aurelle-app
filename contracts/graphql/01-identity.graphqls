@@ -1,42 +1,99 @@
-# Aurelle GraphQL contract — identity and authorization. Status: draft (phase 1).
-# Data model: ../data-model/01-identity-access.md. Credential transport (cookie vs bearer) is decision D5;
-# these operations stay the same either way.
+# Aurelle GraphQL contract — identity, organization and authorization. Status: review (phase 1).
+# Data model: ../data-model/01-identity-access.md. Errors: ../errors.md.
+#
+# Credentials (decision D5): opaque server-side sessions.
+# - Browsers (web app): access and refresh tokens are set as HttpOnly, Secure, SameSite=Strict
+#   cookies and are NEVER returned in the response body.
+# - Native clients (Android): requests without an `Origin` header receive the tokens in AuthPayload
+#   and send `Authorization: Bearer <accessToken>`; WebSocket clients send it in the
+#   `connection_init` payload as {"authorization": "Bearer <accessToken>"}.
+# Access tokens live 15 minutes, refresh tokens 30 days and rotate on every refresh; reuse of an old
+# refresh token revokes the whole session. Every operation re-checks permissions on the server, so
+# a permission change applies to the very next request and open subscriptions.
 
-enum AccountKind {
-  CUSTOMER
-  STAFF
-}
-
-enum AccountStatus {
-  ACTIVE
-  INACTIVE
-  LOCKED
-  PENDING_VERIFICATION
-}
-
+"Who a product, audience tab or profile preference is for."
 enum Audience {
   MEN
   WOMEN
   BOYS
   GIRLS
+  "Children's pieces for any gender (prototype 'kids')."
   KIDS_UNISEX
+  "Adult pieces for any gender."
   UNISEX
 }
 
-"The signed-in principal, or null for guests."
+enum AccountKind {
+  "Self-service shopper."
+  CUSTOMER
+  "Shop team member; access comes only from role bindings."
+  STAFF
+}
+
+enum AccountStatus {
+  ACTIVE
+  "Deactivated by the shop; cannot sign in. Reversible."
+  INACTIVE
+  "Temporarily locked after repeated failed sign-ins; unlocks automatically."
+  LOCKED
+  "Staff invited but the invite has not been accepted yet."
+  INVITED
+}
+
+enum ClientPlatform {
+  WEB
+  ANDROID
+}
+
+enum ScopeType {
+  "The whole organization (all locations)."
+  ORGANIZATION
+  "One store or warehouse."
+  LOCATION
+}
+
+enum LocationKind {
+  STORE
+  WAREHOUSE
+  ONLINE
+}
+
+enum RoleKind {
+  "Seeded (Owner, Manager, Packer, Customer). Cannot be archived; grants can be edited."
+  SYSTEM
+  "Created by the shop."
+  CUSTOM
+}
+
+enum PermissionEffect {
+  ALLOW
+  "DENY always wins over ALLOW from any role or override."
+  DENY
+}
+
+"The signed-in principal. Query.viewer is null for guests."
 type Viewer {
   id: ID!
   kind: AccountKind!
+  "PII. Visible to the viewer only."
   email: String
   emailVerified: Boolean!
+  "PII, E.164 (e.g. +250788123456). Visible to the viewer only."
   phone: String
+  phoneVerified: Boolean!
   displayName: String!
   avatarUrl: String
   themePreference: ThemePreference!
+  "BCP 47, e.g. en-RW."
   preferredLocale: String
-  "Stable permission keys granted in the current scope. For navigation only; the server re-checks every operation."
+  """
+  Effective permission keys of the viewer at organization scope plus its default location.
+  For showing navigation only; the server re-checks every operation.
+  """
   permissions: [String!]!
+  "Null for staff accounts."
   customerProfile: CustomerProfile
+  "Null for customer accounts."
   staffProfile: StaffProfile
 }
 
@@ -45,16 +102,41 @@ type CustomerProfile {
   displayName: String!
   givenName: String
   familyName: String
+  "Optional; used for a birthday treat when the customer opts in."
   birthDate: Date
+  "Default audience tab and personalisation."
   shopFor: [Audience!]!
   marketingConsent: Boolean!
+  "Optimistic-lock version; send it back as UpdateMyProfileInput.expectedVersion."
+  version: Long!
 }
 
 type StaffProfile {
   id: ID!
   displayName: String!
+  "Label only (e.g. 'Packer'); access comes from role bindings."
   jobTitle: String
-  defaultLocationId: ID
+  defaultLocation: Location
+}
+
+type Location {
+  id: ID!
+  name: String!
+  kind: LocationKind!
+  active: Boolean!
+}
+
+type Permission {
+  "Stable key, e.g. catalog.product.write. Never renamed."
+  key: String!
+  description: String!
+  "Group for the team screen, e.g. 'Products', 'Stock', 'Money' (prototype page names)."
+  group: String!
+}
+
+type PermissionGrant {
+  permission: Permission!
+  effect: PermissionEffect!
 }
 
 type Role {
@@ -62,97 +144,161 @@ type Role {
   key: String!
   name: String!
   description: String
-  isSystem: Boolean!
-  "Requires permission: team.role.read"
-  permissions: [String!]!
+  kind: RoleKind!
+  "Requires permission: team.role.read. Grants defined directly on this role."
+  grants: [PermissionGrant!]!
+  "Requires permission: team.role.read. Roles whose grants this role also receives."
   inheritsFrom: [Role!]!
-}
-
-type Permission {
-  key: String!
-  description: String!
-}
-
-type StaffMember {
-  id: ID!
-  displayName: String!
-  email: String
-  jobTitle: String
-  status: AccountStatus!
-  roles: [RoleBinding!]!
-  lastSignInAt: DateTime
+  "Requires permission: team.role.read. Effective allowed keys after inheritance and DENY."
+  effectivePermissions: [String!]!
+  version: Long!
 }
 
 type RoleBinding {
   id: ID!
   role: Role!
-  scopeType: String!
+  scopeType: ScopeType!
+  "The organization or location ID, depending on scopeType."
   scopeId: ID!
+  grantedAt: DateTime!
   expiresAt: DateTime
+}
+
+type StaffMember {
+  id: ID!
+  displayName: String!
+  "PII. Requires permission: team.member.read."
+  email: String
+  jobTitle: String
+  status: AccountStatus!
+  roles: [RoleBinding!]!
+  "Per-member additions/removals on top of roles (prototype 'page permissions')."
+  permissionOverrides: [PermissionGrant!]!
+  effectivePermissions: [String!]!
+  defaultLocation: Location
+  lastSignInAt: DateTime
+  version: Long!
 }
 
 type StaffMemberEdge { cursor: String! node: StaffMember! }
 type StaffMemberConnection { edges: [StaffMemberEdge!]! pageInfo: PageInfo! totalCount: Int! }
 
+"A signed-in device of the viewer."
 type DeviceSession {
   id: ID!
+  "e.g. 'Chrome on Windows', 'Pixel 8'. Never contains IP addresses."
   deviceLabel: String
-  platform: String!
+  platform: ClientPlatform!
+  createdAt: DateTime!
   lastSeenAt: DateTime!
+  "True for the session making this request."
   current: Boolean!
 }
 
+input StaffMemberFilter {
+  "Matches name or email (case- and accent-insensitive)."
+  search: String
+  status: [AccountStatus!]
+  roleId: ID
+}
+
 extend type Query {
-  "Null when not signed in."
+  "Null when not signed in. Never an error for guests."
   viewer: Viewer
-  "The viewer's active sessions (devices)."
+  "Signed-in viewer's active sessions, newest first (at most 50)."
   mySessions: [DeviceSession!]!
-  "Requires permission: team.member.read"
-  staffMembers(first: Int = 25, after: String, search: String): StaffMemberConnection!
-  "Requires permission: team.role.read"
+  "Requires permission: team.member.read. first: default 25, max 100. Ordered by displayName, then id."
+  staffMembers(first: Int = 25, after: String, filter: StaffMemberFilter): StaffMemberConnection!
+  "Requires permission: team.member.read."
+  staffMember(id: ID!): StaffMember
+  "Requires permission: team.role.read."
   roles: [Role!]!
-  "Requires permission: team.role.read"
+  "Requires permission: team.role.read. The full permission catalogue."
   permissions: [Permission!]!
+  "Requires permission: team.member.read. Locations of the organization."
+  locations: [Location!]!
 }
 
 # ---------- inputs & payloads ----------
 
 input SignUpInput {
   displayName: String!
-  "At least one of email/phone is required."
+  "At least one of email/phone is required (VALIDATION_FAILED otherwise)."
   email: String
+  "E.164."
   phone: String
+  "At least 10 characters; rejected if found in known-breached password lists (PASSWORD_TOO_WEAK)."
   password: String!
-  marketingConsent: Boolean = false
+  "Must be true (TERMS_NOT_ACCEPTED)."
   acceptTerms: Boolean!
-  "Optional guest-cart/wishlist token to merge into the new account."
+  marketingConsent: Boolean = false
+  shopFor: [Audience!]
+  preferredLocale: String
+  "Optional guest cart/wishlist token to merge into the new account."
   guestToken: String
+  deviceLabel: String
 }
 
 input SignInInput {
-  "Email or phone."
+  "Email or E.164 phone."
   identifier: String!
   password: String!
   guestToken: String
   deviceLabel: String
 }
 
+input RefreshSessionInput {
+  "Native clients only. Browsers omit it; the HttpOnly refresh cookie is used."
+  refreshToken: String
+}
+
 type AuthPayload {
   viewer: Viewer
-  "Only for clients using bearer tokens (decision D5); null with cookie sessions."
+  "Native clients only (request without Origin header); always null for browsers."
   accessToken: String
+  accessTokenExpiresAt: DateTime
+  "Native clients only; store it in platform secure storage (Android Keystore)."
   refreshToken: String
-  expiresAt: DateTime
+  refreshTokenExpiresAt: DateTime
   errors: [UserError!]!
 }
 
-input RequestPasswordResetInput { identifier: String! }
-input ResetPasswordInput { token: String! newPassword: String! }
-input VerifyEmailInput { token: String! }
+input RevokeSessionInput { sessionId: ID! }
+input RequestPasswordResetInput { "Email or E.164 phone." identifier: String! }
+"""
+Reset with the link token, or with identifier + the 6-digit code from the same e-mail.
+Exactly one of `token` or (`identifier` and `code`) (VALIDATION_FAILED otherwise).
+"""
+input ResetPasswordInput {
+  "From the link in the e-mail."
+  token: String
+  "Email or E.164 phone the code was sent to."
+  identifier: String
+  "6 digits. At most 5 wrong attempts, then the code and link stop working."
+  code: String
+  newPassword: String!
+}
+
+"""
+Verify with the link token (works signed out), or with the 6-digit code (signed-in viewer only).
+Exactly one of `token` or `code` (VALIDATION_FAILED otherwise).
+"""
+input VerifyEmailInput {
+  token: String
+  "6 digits. At most 5 wrong attempts, then the code and link stop working."
+  code: String
+}
 input ChangePasswordInput { currentPassword: String! newPassword: String! }
 
+input AcceptStaffInviteInput {
+  token: String!
+  password: String!
+  displayName: String
+  deviceLabel: String
+}
+
 type AckPayload {
-  "Always true for enumeration-safe operations, even if the account does not exist."
+  "True when accepted. Enumeration-safe operations return true even if no account matches."
   ok: Boolean!
   errors: [UserError!]!
 }
@@ -161,12 +307,14 @@ input UpdateMyProfileInput {
   displayName: String
   givenName: String
   familyName: String
+  "E.164. Changing it clears phoneVerified."
   phone: String
   birthDate: Date
   shopFor: [Audience!]
   themePreference: ThemePreference
   preferredLocale: String
   marketingConsent: Boolean
+  "CustomerProfile.version; CONFLICT if stale. Staff omit it."
   expectedVersion: Long
 }
 
@@ -174,9 +322,12 @@ type ViewerPayload { viewer: Viewer errors: [UserError!]! }
 
 input InviteStaffInput {
   displayName: String!
+  "The invite link is e-mailed here; it expires after 72 hours and works once."
   email: String!
   jobTitle: String
+  "At least one role."
   roleIds: [ID!]!
+  "Scope of the role bindings: a location, or the whole organization when omitted."
   locationId: ID
 }
 
@@ -184,48 +335,81 @@ input UpdateStaffMemberInput {
   staffMemberId: ID!
   displayName: String
   jobTitle: String
+  "ACTIVE or INACTIVE. Deactivation signs the member out everywhere."
   status: AccountStatus
+  defaultLocationId: ID
   expectedVersion: Long!
 }
 
 input SetStaffRolesInput {
   staffMemberId: ID!
+  "Replaces the member's role bindings for the given scope."
   roleIds: [ID!]!
+  "Scope: a location, or the whole organization when omitted."
   locationId: ID
+  expectedVersion: Long!
+}
+
+input PermissionGrantInput { key: String! effect: PermissionEffect! }
+
+input SetStaffPermissionOverridesInput {
+  staffMemberId: ID!
+  "Replaces all overrides of the member. Empty list removes them."
+  overrides: [PermissionGrantInput!]!
+  expectedVersion: Long!
 }
 
 input UpsertRoleInput {
+  "Omit to create."
   roleId: ID
+  "Lowercase letters, digits and dashes. Immutable for SYSTEM roles."
   key: String!
   name: String!
   description: String
-  permissionKeys: [String!]!
+  grants: [PermissionGrantInput!]!
   inheritsFromRoleIds: [ID!]
+  "Required when updating."
   expectedVersion: Long
 }
+
+input ArchiveRoleInput { roleId: ID! expectedVersion: Long! }
 
 type StaffMemberPayload { staffMember: StaffMember errors: [UserError!]! }
 type RolePayload { role: Role errors: [UserError!]! }
 
 type Mutation {
+  "Rate limited. EMAIL_TAKEN / PHONE_TAKEN when the identifier already has an account."
   signUp(input: SignUpInput!): AuthPayload!
+  "Rate limited per identifier and per client. Wrong email or password both give INVALID_CREDENTIALS."
   signIn(input: SignInInput!): AuthPayload!
+  "Ends the current session (and clears cookies for browsers)."
   signOut: AckPayload!
-  "Signs out a specific device of the viewer."
-  revokeSession(sessionId: ID!): AckPayload!
-  refreshToken(refreshToken: String!): AuthPayload!
+  "Signs out one of the viewer's other devices."
+  revokeSession(input: RevokeSessionInput!): AckPayload!
+  "Rotates the refresh token. TOKEN_INVALID_OR_EXPIRED when it is unknown, expired or reused."
+  refreshSession(input: RefreshSessionInput!): AuthPayload!
+  "Enumeration-safe: always ok=true. If the account exists, e-mails a 6-digit code and a link, both single-use and valid for 30 minutes."
   requestPasswordReset(input: RequestPasswordResetInput!): AckPayload!
+  "Single use. Signs out every other session of the account."
   resetPassword(input: ResetPasswordInput!): AckPayload!
   verifyEmail(input: VerifyEmailInput!): AckPayload!
+  "Signed-in viewer only. Rate limited. E-mails a new 6-digit code and link (24 hours); older ones stop working."
   resendEmailVerification: AckPayload!
+  "Signs out every other session of the viewer."
   changePassword(input: ChangePasswordInput!): AckPayload!
   updateMyProfile(input: UpdateMyProfileInput!): ViewerPayload!
-  "Requires permission: team.member.manage"
-  inviteStaffMember(input: InviteStaffInput!): StaffMemberPayload!
-  "Requires permission: team.member.manage"
-  updateStaffMember(input: UpdateStaffMemberInput!): StaffMemberPayload!
+  "Public. Activates an invited staff account and signs it in."
+  acceptStaffInvite(input: AcceptStaffInviteInput!): AuthPayload!
   "Requires permission: team.member.manage. Audited."
+  inviteStaffMember(input: InviteStaffInput!): StaffMemberPayload!
+  "Requires permission: team.member.manage. Audited. LAST_OWNER_REQUIRED if it would leave no active owner."
+  updateStaffMember(input: UpdateStaffMemberInput!): StaffMemberPayload!
+  "Requires permission: team.member.manage. Audited. LAST_OWNER_REQUIRED if it would leave no active owner."
   setStaffRoles(input: SetStaffRolesInput!): StaffMemberPayload!
-  "Requires permission: team.role.manage. Rejects inheritance cycles with ROLE_CYCLE. Audited."
+  "Requires permission: team.member.manage. Audited."
+  setStaffPermissionOverrides(input: SetStaffPermissionOverridesInput!): StaffMemberPayload!
+  "Requires permission: team.role.manage. Audited. ROLE_CYCLE if inheritance would form a cycle."
   upsertRole(input: UpsertRoleInput!): RolePayload!
+  "Requires permission: team.role.manage. Audited. SYSTEM_ROLE_PROTECTED for system roles; ROLE_IN_USE while bound."
+  archiveRole(input: ArchiveRoleInput!): RolePayload!
 }

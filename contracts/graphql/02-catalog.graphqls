@@ -222,19 +222,23 @@ input AttachProductMediaInput {
 input UpsertCategoryInput { categoryId: ID name: String! slug: String parentId: ID description: String sortOrder: Int active: Boolean = true }
 type CategoryPayload { category: Category errors: [UserError!]! }
 
+input ArchiveProductInput { productId: ID! expectedVersion: Long! }
+input SetProductHiddenInput { productId: ID! hidden: Boolean! expectedVersion: Long! }
+input DetachProductMediaInput { productId: ID! mediaId: ID! expectedVersion: Long! }
+
 extend type Mutation {
   "Requires permission: catalog.product.write"
   upsertProduct(input: UpsertProductInput!): ProductPayload!
   "Requires permission: catalog.product.write"
-  archiveProduct(productId: ID!, expectedVersion: Long!): ProductPayload!
+  archiveProduct(input: ArchiveProductInput!): ProductPayload!
   "Requires permission: catalog.product.write"
-  setProductHidden(productId: ID!, hidden: Boolean!, expectedVersion: Long!): ProductPayload!
-  "Requires permission: media.upload"
+  setProductHidden(input: SetProductHiddenInput!): ProductPayload!
+  "Requires permission: media.asset.upload"
   requestMediaUpload(input: RequestUploadInput!): UploadTicketPayload!
   "Requires permission: catalog.product.write"
   attachProductMedia(input: AttachProductMediaInput!): ProductPayload!
   "Requires permission: catalog.product.write"
-  detachProductMedia(productId: ID!, mediaId: ID!): ProductPayload!
+  detachProductMedia(input: DetachProductMediaInput!): ProductPayload!
   "Requires permission: catalog.category.write"
   upsertCategory(input: UpsertCategoryInput!): CategoryPayload!
 }

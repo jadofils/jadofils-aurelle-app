@@ -27,6 +27,31 @@ curl -s -X POST -H 'Content-Type: application/json' \
   -d '{"query":"{ serverInfo { apiVersion } shopSettings { shopName } }"}' http://localhost:8080/graphql
 ```
 
+## E-mail (verification codes and links)
+
+Every verification, password-reset and invite e-mail contains a **6-digit code and a link**; either works once (decision D28). Sending is off by default (`AURELLE_MAIL_ENABLED=false`), so tests and CI never send real mail.
+
+Local setup with Gmail: put these in the git-ignored `.env` at the repository root (the `dev` profile reads it):
+
+```properties
+AURELLE_MAIL_ENABLED=true
+AURELLE_MAIL_HOST=smtp.gmail.com
+AURELLE_MAIL_PORT=587
+AURELLE_MAIL_USERNAME=<your gmail address>
+AURELLE_MAIL_PASSWORD=<16-character Gmail app password, no spaces>
+AURELLE_MAIL_FROM=<your gmail address>
+AURELLE_MAIL_FROM_NAME=Aurelle
+AURELLE_PUBLIC_WEB_URL=http://localhost:8081
+```
+
+The app password comes from Google Account → Security → 2-Step Verification → App passwords (never your normal password). Send yourself a sample e-mail to check the settings:
+
+```sh
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev   -Dspring-boot.run.arguments=--aurelle.mail.test-recipient=<your address>
+```
+
+For testing/staging/production set the same `AURELLE_MAIL_*` variables as GitHub environment secrets. Gmail allows about 500 recipients a day; production should use a transactional provider by changing only these variables.
+
 ## Container image
 
 Build from the **repository root** (the schema comes from `../contracts/graphql`):

@@ -70,6 +70,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Outgoing e-mail (verification codes/links, resets, invites); decision D28 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Persistence: PostgreSQL, one HikariCP pool, Flyway migrations (see docs/decisions.md D3/D4) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -129,6 +135,13 @@
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- In-JVM SMTP server for e-mail adapter tests -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>2.1.15</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -35,6 +35,20 @@ spring:
     websocket:
       path: /graphql
       connection-init-timeout: 10s
+  mail:
+    # SMTP (decision D28). Values come from AURELLE_MAIL_* env vars; the dev profile also reads ../.env.
+    host: ${AURELLE_MAIL_HOST:}
+    port: ${AURELLE_MAIL_PORT:587}
+    username: ${AURELLE_MAIL_USERNAME:}
+    password: ${AURELLE_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
   mvc:
     async:
       # Upper bound for a GraphQL HTTP request (GraphQL over MVC runs asynchronously).
@@ -49,6 +63,15 @@ aurelle:
     max-complexity: ${AURELLE_GRAPHQL_MAX_COMPLEXITY:500}
   organization:
     default-slug: aurelle
+  mail:
+    # Off unless explicitly enabled, so tests and CI never send real e-mail.
+    enabled: ${AURELLE_MAIL_ENABLED:false}
+    from: ${AURELLE_MAIL_FROM:no-reply@example.test}
+    from-name: ${AURELLE_MAIL_FROM_NAME:Aurelle}
+    test-recipient: ${AURELLE_MAIL_TEST_RECIPIENT:}
+  web:
+    # Base URL of the Flutter web app; used in e-mail links.
+    public-url: ${AURELLE_PUBLIC_WEB_URL:http://localhost:8081}
 
 server:
   shutdown: graceful
@@ -70,3 +93,7 @@ management:
       probes:
         enabled: true
       show-details: never
+  health:
+    mail:
+      # E-mail is not critical: an SMTP outage must not make the service unhealthy (and restart it).
+      enabled: false
