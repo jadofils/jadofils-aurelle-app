@@ -30,10 +30,19 @@ class IdentityConfiguration {
         return new SecureTokens(properties.codeHmacKey(), new SecureRandom());
     }
 
-    /** 10 sign-in attempts per identifier/client per 15 minutes (on top of the per-account lock). */
+    /** 10 sign-in attempts per identifier per 15 minutes (on top of the per-account lock). */
     @Bean
     RateLimiter signInLimiter(Clock clock) {
         return new RateLimiter(10, Duration.ofMinutes(15), clock);
+    }
+
+    /**
+     * 100 sign-in attempts per client address per 15 minutes: a whole shop or office often shares one
+     * public IP, so this only stops bulk guessing across many accounts.
+     */
+    @Bean
+    RateLimiter clientLimiter(Clock clock) {
+        return new RateLimiter(100, Duration.ofMinutes(15), clock);
     }
 
     /** Sign-up, resets, resends, password changes: 5 per key per hour. */

@@ -57,7 +57,7 @@ spring:
 aurelle:
   api:
     version: "@project.version@"
-    contract-phase: 0
+    contract-phase: 1
   graphql:
     max-depth: ${AURELLE_GRAPHQL_MAX_DEPTH:12}
     max-complexity: ${AURELLE_GRAPHQL_MAX_COMPLEXITY:500}

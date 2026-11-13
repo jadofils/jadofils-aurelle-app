@@ -2,6 +2,15 @@
 
 Newest first. Each entry: date, from → to, what is ready, where, how to run/verify, known limits.
 
+## 2026-11-13 — backend → frontend, quality: Phase 1 API is live (branch `feature/identity-auth`)
+- **Served now** (`serverInfo.contractPhase` = 1): every query and mutation in `contracts/graphql/01-identity.graphqls`. `SchemaMappingIT` proves each field has a resolver.
+- **Sign in as seeded users** (dev/test/testing/staging): `owner@`, `manager@`, `packer@example.test` (staff), `amina@example.test` (customer, verified), `kofi@` (inactive), `nia@` (locked), `invited@` (invite pending). Password = the `AURELLE_SEED_PASSWORD` of that environment.
+- **Web client:** send requests with the page's `Origin` (browsers do); tokens are never in the body; cookies `__Host-aurelle_at` / `__Host-aurelle_rt` (HttpOnly, SameSite=Strict). Allowed origins: `AURELLE_ALLOWED_ORIGINS` (default `http://localhost:8081`). Plain-http local setups other than localhost need `AURELLE_SECURE_COOKIES=false`.
+- **Android client:** no `Origin` header; read `accessToken`/`refreshToken` from `AuthPayload`, send `Authorization: Bearer …`, call `refreshSession(input: {refreshToken})` before `accessTokenExpiresAt` (15 min).
+- **Verification e-mails** contain a 6-digit code and a link (`<AURELLE_PUBLIC_WEB_URL>/verify-email?token=…`, `/reset-password?token=…`, `/accept-invite?token=…`); the web app routes must read `token` and call `verifyEmail` / `resetPassword` / `acceptStaffInvite`.
+- **Quality:** environments need `AURELLE_SEED_PASSWORD`, `AURELLE_CODE_HMAC_KEY` (random 32+ chars, secret), `AURELLE_ALLOWED_ORIGINS`, `AURELLE_PUBLIC_WEB_URL`, and `AURELLE_MAIL_*` to send e-mail. Rate limits: sign-in 10 per account and 100 per client address per 15 min (`RATE_LIMITED` with `retryAfterSeconds`).
+- **Known limits:** breached-password check is a small offline list (full check is a follow-up); SMS verification waits for D28; audit log has no read API yet (`audit.event.read` reserved).
+
 ## 2026-11-13 — backend → frontend, quality: Phase 1 contract in `review` (PR `feature/identity-access`)
 - **Read:** `contracts/graphql/01-identity.graphqls`, `contracts/data-model/01-identity-access.md`, Phase 1 codes in `contracts/errors.md`, decision D5 in `docs/decisions.md`. Comment through `contracts/proposals/<date>-<topic>.md`; I freeze after your comments (or by the end of the next working session if there are none).
 - **Auth (D5), what the client does:** web: nothing special; sessions are HttpOnly cookies, tokens never appear in responses. Android: send no `Origin` header, keep `accessToken`/`refreshToken` from `AuthPayload` in secure storage, send `Authorization: Bearer …`, call `refreshSession` before `accessTokenExpiresAt`, and put `{"authorization":"Bearer …"}` in the WebSocket `connection_init` payload.

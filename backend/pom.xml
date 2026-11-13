@@ -181,6 +181,7 @@
                 <filtering>false</filtering>
                 <includes>
                     <include>00-common.graphqls</include>
+                    <include>01-identity.graphqls</include>
                 </includes>
             </resource>
         </resources>

@@ -42,6 +42,28 @@ class JdbcOrganizationDirectory implements OrganizationDirectory {
                 "Default organization '" + defaultSlug + "' is missing; check migrations and aurelle.organization.default-slug"));
     }
 
+    @Override
+    public java.util.List<com.aurelle.organization.LocationSummary> locations(UUID organizationId) {
+        return jdbc.sql("""
+                select id, name, kind, active from location
+                 where organization_id = :org and archived_at is null
+                 order by active desc, name, id
+                """)
+            .param("org", organizationId)
+            .query((rs, row) -> new com.aurelle.organization.LocationSummary(rs.getObject("id", UUID.class),
+                rs.getString("name"), rs.getString("kind"), rs.getBoolean("active")))
+            .list();
+    }
+
+    @Override
+    public java.util.Optional<com.aurelle.organization.LocationSummary> location(UUID locationId) {
+        return jdbc.sql("select id, name, kind, active from location where id = :id and archived_at is null")
+            .param("id", locationId)
+            .query((rs, row) -> new com.aurelle.organization.LocationSummary(rs.getObject("id", UUID.class),
+                rs.getString("name"), rs.getString("kind"), rs.getBoolean("active")))
+            .optional();
+    }
+
     /** {@code aurelle.organization.*}. */
     @Validated
     @ConfigurationProperties("aurelle.organization")

@@ -19,7 +19,7 @@ class GraphQlApiIT extends IntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         Map<String, Object> serverInfo = data(response, "serverInfo");
         assertThat((String) serverInfo.get("apiVersion")).isNotBlank().doesNotContain("@");
-        assertThat(serverInfo).containsEntry("contractPhase", 0);
+        assertThat(serverInfo).containsEntry("contractPhase", 1);
         assertThat(response.getBody()).doesNotContainKey("errors");
     }
 

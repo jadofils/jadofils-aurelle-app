@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 
 /** {@code auth_session} rows. Every state change is a single conditional statement (safe under races). */
 @Repository
-class SessionStore {
+public class SessionStore {
 
     private final JdbcClient jdbc;
 
@@ -132,6 +132,6 @@ class SessionStore {
         return instant.atOffset(ZoneOffset.UTC);
     }
 
-    record SessionView(UUID id, String deviceLabel, String platform, Instant createdAt, Instant lastSeenAt) {
+    public record SessionView(UUID id, String deviceLabel, String platform, Instant createdAt, Instant lastSeenAt) {
     }
 }

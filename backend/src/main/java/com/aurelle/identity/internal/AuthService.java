@@ -42,6 +42,7 @@ public class AuthService implements SessionAuthenticator {
     private final IdentityProperties properties;
     private final RateLimiter signInLimiter;
     private final RateLimiter sensitiveLimiter;
+    private final RateLimiter clientLimiter;
     private final Clock clock;
     private final String publicWebUrl;
 
@@ -49,7 +50,8 @@ public class AuthService implements SessionAuthenticator {
             PasswordHasher hasher, OrganizationDirectory organizations, Authorization authorization, AuditLog audit,
             ApplicationEventPublisher events, IdentityProperties properties,
             @Qualifier("signInLimiter") RateLimiter signInLimiter,
-            @Qualifier("sensitiveLimiter") RateLimiter sensitiveLimiter, Clock clock,
+            @Qualifier("sensitiveLimiter") RateLimiter sensitiveLimiter,
+            @Qualifier("clientLimiter") RateLimiter clientLimiter, Clock clock,
             @Value("${aurelle.web.public-url}") String publicWebUrl) {
         this.accounts = accounts;
         this.sessions = sessions;
@@ -63,6 +65,7 @@ public class AuthService implements SessionAuthenticator {
         this.properties = properties;
         this.signInLimiter = signInLimiter;
         this.sensitiveLimiter = sensitiveLimiter;
+        this.clientLimiter = clientLimiter;
         this.clock = clock;
         this.publicWebUrl = publicWebUrl;
     }
@@ -126,7 +129,7 @@ public class AuthService implements SessionAuthenticator {
     public AuthResult signIn(String identifier, String password, Client client) {
         String key = Credentials.normalizeIdentifier(identifier);
         signInLimiter.acquire("sign-in:id:" + key);
-        signInLimiter.acquire("sign-in:client:" + client.rateKey());
+        clientLimiter.acquire("sign-in:client:" + client.rateKey());
         UUID org = organizations.defaultOrganization().id();
         Optional<AccountRecord> found = accounts.findByIdentifier(org, key);
         Instant now = clock.instant();
