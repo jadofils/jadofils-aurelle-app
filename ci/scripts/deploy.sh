@@ -9,13 +9,13 @@ env_name="${1:?usage: deploy.sh <environment> <sha>}"
 sha="${2:?usage: deploy.sh <environment> <sha>}"
 summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
-if [ "${IMAGES_PUSHED:-false}" != "true" ]; then
+if [[ "${IMAGES_PUSHED:-false}" != "true" ]]; then
   echo "::warning::No images were pushed for $sha (Dockerfiles missing?). Nothing deployed to $env_name."
   echo "### $env_name: NOT DEPLOYED (no images)" >> "$summary"
   exit 0
 fi
 
-if [ -z "${DEPLOY_WEBHOOK_URL:-}" ]; then
+if [[ -z "${DEPLOY_WEBHOOK_URL:-}" ]]; then
   echo "::warning::DEPLOY_WEBHOOK_URL is not set for environment '$env_name' (decision D8 open). Nothing deployed."
   echo "### $env_name: NOT DEPLOYED (no deploy target configured)" >> "$summary"
   exit 0

@@ -78,7 +78,7 @@ jobs:
           cache: true
       - name: Resolve dependencies
         id: pubget
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile   # pubspec.lock must be committed
       # The checks below all run (and report) even if an earlier one fails; the job still fails.
       - name: Format check
         run: dart format --output=none --set-exit-if-changed lib test

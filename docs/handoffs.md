@@ -6,6 +6,7 @@ Newest first. Each entry: date, from → to, what is ready, where, how to run/ve
 - All CI/Sonar references now use repo `jadofils/jadofils-aurelle-app` and Sonar project `jadofils_jadofils-aurelle-app` (Sonar way gate). New `SONAR_TOKEN` secret set; environments `testing`, `staging`, `production` recreated (production: owner approval, `main`/`v*` only).
 - CI pins Flutter 3.44.0 (Dart 3.12.0), matching the Docker check below.
 - **Frontend:** the frontend CI job stays red until `dart format lib test` is applied to `theme.dart`, `tokens.dart`, `window_size.dart`, `test/app_test.dart` (see the next entry).
+- **Frontend:** commit `frontend/pubspec.lock`. CI runs `flutter pub get --enforce-lockfile` (SonarQube security rule githubactions:S8550: dependencies must be locked).
 
 ## 2026-11-13 — scaffold session → frontend: Flutter checks run in Docker (read-only)
 - Toolchain: Docker image `ghcr.io/cirruslabs/flutter:3.44.0` (Flutter 3.44.0, Dart 3.12.0; meets `sdk: ^3.12.0`). Pin this tag in CI rather than `stable`. No Flutter install on the host is needed.

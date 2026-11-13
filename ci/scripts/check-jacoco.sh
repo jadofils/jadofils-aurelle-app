@@ -6,7 +6,7 @@ report="${1:?usage: check-jacoco.sh <jacoco.xml>}"
 min_line="${MIN_LINE_COVERAGE:-95}"
 min_branch="${MIN_BRANCH_COVERAGE:-90}"
 
-if [ ! -f "$report" ]; then
+if [[ ! -f "$report" ]]; then
   echo "::error::JaCoCo report not found at $report. The backend build must produce a merged unit+IT report (backend Phase 0 task)."
   exit 1
 fi
@@ -24,7 +24,7 @@ read -r line_missed line_covered branch_missed branch_covered < <(
   }'
 )
 
-pct() { awk -v c="$1" -v m="$2" 'BEGIN { t=c+m; if (t==0) print "100.00"; else printf "%.2f", 100*c/t }'; }
+pct() { local covered="$1" missed="$2"; awk -v c="$covered" -v m="$missed" 'BEGIN { t=c+m; if (t==0) print "100.00"; else printf "%.2f", 100*c/t }'; }
 line_pct=$(pct "$line_covered" "$line_missed")
 branch_pct=$(pct "$branch_covered" "$branch_missed")
 echo "Backend coverage: line ${line_pct}% (min ${min_line}%), branch ${branch_pct}% (min ${min_branch}%)"
