@@ -1,4 +1,4 @@
-# Aurelle GraphQL contract — common types. Status: draft (phase 0).
+# Aurelle GraphQL contract — common types. Status: frozen 2026-11-13 (phase 0). Changes: ../CHANGELOG.md; breaking changes need a proposal.
 # Conventions: ../../.claude/rules/contracts.md. Errors: ../errors.md.
 
 "ISO-8601 instant in UTC, e.g. 2026-11-13T09:30:00Z"

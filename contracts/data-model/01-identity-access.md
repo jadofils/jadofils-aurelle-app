@@ -1,4 +1,4 @@
-# Phase 1 — Identity, access, organization (status: review)
+# Phase 1 — Identity, access, organization (status: frozen 2026-11-13; implemented in V0001, V0003–V0007)
 
 Modules: `organization`, `identity`, `authorization`, `audit`. Conventions and standard columns: [00-conventions.md](00-conventions.md). GraphQL: [../graphql/01-identity.graphqls](../graphql/01-identity.graphqls).
 

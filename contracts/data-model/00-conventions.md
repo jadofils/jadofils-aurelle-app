@@ -1,4 +1,4 @@
-# Data model conventions (status: draft)
+# Data model conventions (status: frozen 2026-11-13)
 
 Rules: `../../.claude/rules/data-model.md`. Column legend for every table in this folder: **Req** = `Y` NOT NULL / `-` optional; **PII** = personal data (erasure, redaction, restricted access).
 
