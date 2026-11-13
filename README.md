@@ -2,7 +2,7 @@
 
 Retail and stock-management platform: Java 21 + Spring Boot backend, PostgreSQL, GraphQL (HTTP + WebSocket subscriptions), and a Flutter client for Android and Web.
 
-The prototype lives in a separate repository: [jadofils/aurelle-mobile-app-](https://github.com/jadofils/aurelle-mobile-app-). Use it as a visual and workflow reference only. It is a browser-only demo and its localStorage data is not production data. (Locally it sits alongside this directory at `../aurelle`. Claude Code guidance files are kept locally and are not committed.)
+The prototype lives in a separate repository: [jadofils/aurelle-mobile-web-prototype](https://github.com/jadofils/aurelle-mobile-web-prototype). Use it as a visual and workflow reference only. It is a browser-only demo and its localStorage data is not production data. (Locally it sits alongside this directory at `../aurelle`. Claude Code guidance files are kept locally and are not committed.)
 
 | Folder | Contents |
 | --- | --- |
