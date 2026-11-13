@@ -1,4 +1,4 @@
-# Errors (status: draft, phase 0)
+# Errors (status: phase 0 and phase 1 codes frozen 2026-11-13; later phases add codes here)
 
 ## GraphQL errors (`errors[].extensions.code`)
 Unexpected or protocol-level failures. Messages are safe for users; no stack traces, SQL, or internal IDs.
@@ -22,7 +22,7 @@ Unexpected or protocol-level failures. Messages are safe for users; no stack tra
 Initial codes (backend adds more per phase, here):
 `VALIDATION_FAILED`, `EMAIL_TAKEN`, `INVALID_CREDENTIALS` (same message whether email or password is wrong), `ACCOUNT_INACTIVE`, `TOKEN_INVALID_OR_EXPIRED`, `PASSWORD_TOO_WEAK`, `ROLE_CYCLE`, `OUT_OF_STOCK`, `INSUFFICIENT_STOCK`, `PRICE_CHANGED`, `PROMO_INVALID`, `PROMO_EXPIRED`, `PROMO_MIN_NOT_MET`, `PROMO_USAGE_LIMIT`, `POINTS_INSUFFICIENT`, `INVALID_STATUS_TRANSITION`, `PAYMENT_DECLINED`, `DUPLICATE_REQUEST`, `UPLOAD_REJECTED`.
 
-### Phase 1 (identity and authorization), status: review
+### Phase 1 (identity and authorization), status: frozen 2026-11-13
 | Code | Returned by | Meaning |
 | --- | --- | --- |
 | `VALIDATION_FAILED` | any mutation | An input field is invalid; `field` points at it, `message` says how to fix it |

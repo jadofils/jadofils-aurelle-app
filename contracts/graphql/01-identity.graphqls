@@ -1,4 +1,4 @@
-# Aurelle GraphQL contract — identity, organization and authorization. Status: review (phase 1).
+# Aurelle GraphQL contract — identity, organization and authorization. Status: frozen 2026-11-13 (phase 1). Changes: ../CHANGELOG.md; breaking changes need a proposal.
 # Data model: ../data-model/01-identity-access.md. Errors: ../errors.md.
 #
 # Credentials (decision D5): opaque server-side sessions.
