@@ -69,6 +69,21 @@ aurelle:
     from: ${AURELLE_MAIL_FROM:no-reply@example.test}
     from-name: ${AURELLE_MAIL_FROM_NAME:Aurelle}
     test-recipient: ${AURELLE_MAIL_TEST_RECIPIENT:}
+  identity:
+    # Decision D5. Tokens are opaque; only hashes are stored.
+    access-token-ttl: 15m
+    refresh-token-ttl: 30d
+    email-verify-ttl: 24h
+    password-reset-ttl: 30m
+    staff-invite-ttl: 72h
+    max-failed-sign-ins: 5
+    lock-duration: 15m
+    # Server key for hashing 6-digit codes. Set it in every shared environment (secret).
+    code-hmac-key: ${AURELLE_CODE_HMAC_KEY:}
+    terms-version: "2026-10"
+    # Browser origins whose session cookies are accepted (CSRF protection), comma-separated.
+    allowed-origins: ${AURELLE_ALLOWED_ORIGINS:http://localhost:8081}
+    secure-cookies: ${AURELLE_SECURE_COOKIES:true}
   web:
     # Base URL of the Flutter web app; used in e-mail links.
     public-url: ${AURELLE_PUBLIC_WEB_URL:http://localhost:8081}
