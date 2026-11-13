@@ -28,8 +28,9 @@ class ContractSchemaTest {
     private static final Path CONTRACTS = Path.of("..", "contracts");
     private static final Path GRAPHQL = CONTRACTS.resolve("graphql");
     private static final Path PERMISSION_CATALOGUE = CONTRACTS.resolve("data-model").resolve("01-identity-access.md");
-    private static final Pattern REQUIRED_PERMISSION = Pattern.compile("Requires permission: ([a-z]+(?:\\.[a-z_]+)+)");
-    private static final Pattern CATALOGUE_KEY = Pattern.compile("`([a-z]+(?:\\.[a-z_]+){2})`");
+    /** Character classes only (no repeated groups): linear matching, no deep recursion. */
+    private static final Pattern REQUIRED_PERMISSION = Pattern.compile("Requires permission: ([a-z][a-z_.]*[a-z_])");
+    private static final Pattern CATALOGUE_KEY = Pattern.compile("`([a-z][a-z_.]*[a-z_])`");
 
     private static List<Path> files;
     private static GraphQLSchema schema;
@@ -86,7 +87,10 @@ class ContractSchemaTest {
         Set<String> found = new TreeSet<>();
         Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
-            found.add(matcher.group(1));
+            String key = matcher.group(1);
+            if (key.chars().filter(c -> c == '.').count() == 2 && !key.contains("..")) {
+                found.add(key);
+            }
         }
         return found;
     }

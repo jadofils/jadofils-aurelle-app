@@ -1,7 +1,7 @@
 package com.aurelle.messaging;
 
+import com.aurelle.common.EmailAddresses;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 /**
  * An outgoing e-mail. Bodies may contain one-time codes or links, so instances are never logged.
@@ -13,13 +13,11 @@ import java.util.regex.Pattern;
  */
 public record EmailMessage(String to, String subject, String textBody, String htmlBody) {
 
-    private static final Pattern ADDRESS = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
-
     public EmailMessage {
         Objects.requireNonNull(to, "to");
         Objects.requireNonNull(subject, "subject");
         Objects.requireNonNull(textBody, "textBody");
-        if (!ADDRESS.matcher(to).matches()) {
+        if (!EmailAddresses.isValid(to)) {
             throw new IllegalArgumentException("to must be an e-mail address");
         }
         if (subject.isBlank() || subject.contains("\n") || subject.contains("\r")) {
