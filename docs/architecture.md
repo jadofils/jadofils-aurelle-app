@@ -38,6 +38,8 @@ Backend modules are added as top-level packages under `com.aurelle` only when a 
 
 ## 3. Phased vertical slices
 
+> The detailed, per-agent phase plan (backend / frontend / quality tasks and exit criteria) now lives in [`../contracts/PHASES.md`](../contracts/PHASES.md), which adds Phase 0 quality/CI foundations and Phase 10 hardening. The table below is the summary.
+
 Each phase ships end to end: migration, domain, GraphQL, authorization, audit, Flutter screens, tests.
 
 | # | Slice | Depends on | Acceptance criteria (summary) |

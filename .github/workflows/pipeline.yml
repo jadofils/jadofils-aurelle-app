@@ -1,0 +1,331 @@
+# Aurelle CI/CD
+# Every push / pull request: build -> unit + integration tests -> secret scan -> SAST -> SonarQube Cloud
+#   (quality gate waits and fails the run) -> 95 % coverage checks -> images -> smoke test -> Trivy.
+# Branches: feature/* -> testing (dev) -> staging -> main (production), promoted by pull request.
+# Push to testing / staging / main additionally: push images -> deploy to that environment
+#   (production waits for the owner's approval).
+# Rules: .claude/rules/quality-gates-ci.md (local), ci/README.md (committed).
+name: Pipeline
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  # Never cancel a run on an environment branch mid-deploy.
+  cancel-in-progress: ${{ !contains(fromJSON('["refs/heads/testing","refs/heads/staging","refs/heads/main"]'), github.ref) }}
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/aurelle-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/aurelle-frontend
+  MIN_LINE_COVERAGE: '95'
+  MIN_BRANCH_COVERAGE: '90'
+
+jobs:
+  # ---------------------------------------------------------------- backend
+  backend:
+    name: Backend build, unit + integration tests
+    runs-on: ubuntu-latest   # Linux runner: Testcontainers needs Linux Docker
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build and test (Surefire *Test + Failsafe *IT + JaCoCo)
+        working-directory: backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp verify
+      - name: Enforce coverage (>= 95 % line, >= 90 % branch)
+        run: bash ci/scripts/check-jacoco.sh backend/target/site/jacoco/jacoco.xml
+      - name: Upload backend reports and classes for Sonar
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-build
+          path: |
+            backend/target/classes
+            backend/target/test-classes
+            backend/target/site/jacoco
+            backend/target/surefire-reports
+            backend/target/failsafe-reports
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------- frontend
+  frontend:
+    name: Frontend analyze + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: 3.44.0   # Dart 3.12.0; same as ghcr.io/cirruslabs/flutter:3.44.0 used locally
+          cache: true
+      - name: Resolve dependencies
+        id: pubget
+        run: flutter pub get --enforce-lockfile   # pubspec.lock must be committed
+      # The checks below all run (and report) even if an earlier one fails; the job still fails.
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Static analysis
+        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        run: flutter analyze --fatal-infos
+      - name: Tests with coverage
+        id: tests
+        if: ${{ !cancelled() && steps.pubget.outcome == 'success' }}
+        run: flutter test --coverage
+      - name: Enforce coverage (>= 95 % line)
+        if: ${{ !cancelled() && steps.tests.outcome == 'success' }}
+        working-directory: .
+        run: bash ci/scripts/check-lcov.sh frontend/coverage/lcov.info
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------------------------------------------------------------- security
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - name: gitleaks (full history)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --redact --verbose
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Semgrep
+        run: >
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.99.0
+          semgrep scan --error --metrics=off
+          --config p/java --config p/secrets --config p/dockerfile --config p/github-actions
+          --exclude ../aurelle
+
+  # ---------------------------------------------------------------- quality gate
+  sonar:
+    name: SonarQube Cloud analysis + quality gate
+    needs: [backend, frontend]
+    # The SonarQube Cloud plan only allows analysing pull requests and the main branch
+    # ("Organization is not allowed to access data from non main branches"). Code reaches
+    # testing/staging only through a PR whose gate passed, so branch pushes skip this job.
+    if: >-
+      ${{ !cancelled() && (
+        (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0   # full history for accurate new-code detection
+      # Reports may be missing when an upstream job failed early; Sonar still analyses what exists,
+      # and the run stays red because the upstream job failed.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: backend-build
+          path: backend/target
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+      - name: Cache SonarQube packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: SonarQube Scan (waits for the quality gate)
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  # ---------------------------------------------------------------- images
+  images:
+    name: Build images, smoke test, Trivy
+    needs: [backend, frontend, sonar, secret-scan, sast]
+    # Every check must pass; Sonar may be skipped on branch pushes (see the sonar job), never failed.
+    if: >-
+      ${{ !cancelled()
+        && needs.backend.result == 'success' && needs.frontend.result == 'success'
+        && needs.secret-scan.result == 'success' && needs.sast.result == 'success'
+        && (needs.sonar.result == 'success' || needs.sonar.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      pushed: ${{ steps.push.outputs.pushed }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Detect Dockerfiles
+        id: df
+        run: |
+          echo "backend=$([ -f backend/Dockerfile ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$([ -f frontend/Dockerfile ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Missing Dockerfiles (phase 0 work)
+        if: steps.df.outputs.backend != 'true' || steps.df.outputs.frontend != 'true'
+        run: echo "::warning::backend/Dockerfile=${{ steps.df.outputs.backend }} frontend/Dockerfile=${{ steps.df.outputs.frontend }}. Images that do not exist yet are skipped and nothing can be deployed."
+      - name: Lint Dockerfiles (hadolint)
+        run: |
+          for f in backend/Dockerfile frontend/Dockerfile; do
+            [ -f "$f" ] && docker run --rm -i hadolint/hadolint:v2.12.0 < "$f"
+          done; true
+      - name: Build backend image
+        if: steps.df.outputs.backend == 'true'
+        run: docker build -f backend/Dockerfile -t "$BACKEND_IMAGE:${{ github.sha }}" .   # root context: the image packages contracts/graphql
+      - name: Build frontend image
+        if: steps.df.outputs.frontend == 'true'
+        run: docker build -t "$FRONTEND_IMAGE:${{ github.sha }}" frontend
+      - name: Image smoke test
+        run: bash ci/scripts/smoke-images.sh "${{ github.sha }}"
+      - name: Trivy image scan (fail on fixable HIGH/CRITICAL)
+        run: |
+          for img in "$BACKEND_IMAGE:${{ github.sha }}" "$FRONTEND_IMAGE:${{ github.sha }}"; do
+            docker image inspect "$img" >/dev/null 2>&1 || continue
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 \
+              image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$img"
+          done
+      - name: Push images (testing, staging, main)
+        id: push
+        if: github.event_name == 'push' && contains(fromJSON('["refs/heads/testing","refs/heads/staging","refs/heads/main"]'), github.ref)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          pushed=false
+          for img in "$BACKEND_IMAGE" "$FRONTEND_IMAGE"; do
+            docker image inspect "$img:${{ github.sha }}" >/dev/null 2>&1 || continue
+            docker push "$img:${{ github.sha }}"; pushed=true
+          done
+          echo "pushed=$pushed" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------- promotion rules
+  # Branch model: feature/* -> testing (dev) -> staging -> main (production).
+  promotion-guard:
+    name: Promotion order (testing -> staging -> main)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check source branch for this target
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$BASE_REF" in
+            staging)
+              [[ "$HEAD_REF" == "testing" ]] || { echo "::error::Only 'testing' may be merged into 'staging' (got '$HEAD_REF')."; exit 1; } ;;
+            main)
+              [[ "$HEAD_REF" == "staging" || "$HEAD_REF" == hotfix/* ]] || { echo "::error::Only 'staging' (or hotfix/*) may be merged into 'main' (got '$HEAD_REF')."; exit 1; } ;;
+            testing)
+              # Work branches are cut from testing and named feature/*, fix/* or chore/* (hotfix/* for back-ports).
+              # The two branches listed below were opened before this rule; remove them once merged.
+              if [[ "$HEAD_REF" =~ ^(feature|fix|chore|hotfix)/[a-z0-9][a-z0-9._-]*$ ]] \
+                 || [[ "$HEAD_REF" == "ci/github-actions-cicd" || "$HEAD_REF" == "backend/phase-0" ]]; then
+                echo "Branch name OK"
+              else
+                echo "::error::Branch '$HEAD_REF' must be named feature/<topic>, fix/<topic> or chore/<topic> (lowercase, cut from testing)."; exit 1
+              fi ;;
+            *)
+              ;;  # other targets (feature branches): no promotion rule
+          esac
+          echo "OK: $HEAD_REF -> $BASE_REF"
+
+  # ---------------------------------------------------------------- delivery
+  # Each long-lived branch deploys to its own GitHub environment.
+  deploy-testing:
+    name: Deploy to testing + E2E
+    needs: images
+    if: ${{ !cancelled() && needs.images.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/testing' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: testing
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Deploy
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
+        run: bash ci/scripts/deploy.sh testing "${{ github.sha }}"
+      - name: E2E + load smoke against testing
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: bash ci/scripts/e2e.sh testing
+
+  deploy-staging:
+    name: Deploy to staging + E2E
+    needs: images
+    if: ${{ !cancelled() && needs.images.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/staging' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Deploy
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
+        run: bash ci/scripts/deploy.sh staging "${{ github.sha }}"
+      - name: E2E + load smoke against staging
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: bash ci/scripts/e2e.sh staging
+
+  deploy-production:
+    name: Deploy to production (requires approval)
+    needs: images
+    if: ${{ !cancelled() && needs.images.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.BASE_URL }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Deploy
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          IMAGES_PUSHED: ${{ needs.images.outputs.pushed }}
+        run: bash ci/scripts/deploy.sh production "${{ github.sha }}"
+      - name: Smoke against production
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+        run: bash ci/scripts/e2e.sh production smoke
