@@ -7,7 +7,7 @@ Status values: **Decided** · **Proposed** (default used in code; easy to change
 | D1 | Backend build tool | Proposed | Maven, with the Maven wrapper | Maven 3.9 is installed locally; Gradle is not |
 | D2 | Spring Boot line | Decided | 4.1.2 (latest GA, Nov 2026) + Spring Modulith 2.1.2 | 4.2 is still RC. Pinned in `backend/pom.xml` |
 | D3 | Schema migrations | Proposed | Flyway (only) | The rules say pick one. Liquibase not used |
-| D4 | Persistence style | Open | Decide in slice 2: Spring Data JDBC + `JdbcClient` (leaning) vs JPA | JDBC favours the explicit SQL, conditional updates and locking the rules need. Only `spring-boot-starter-jdbc` is on the classpath for now |
+| D4 | Persistence style | Decided | Spring `JdbcClient` adapters behind repository ports (explicit SQL); Spring Data JDBC allowed for simple aggregates; no JPA | Explicit SQL suits conditional updates, row locks and `EXPLAIN` review required by the database rules. Decided 2026-11-13 (backend) |
 | D5 | Authentication mechanism | Open | Decide in slice 1 (server sessions + CSRF for web vs short-lived tokens for Android) | Until then every request except health probes is denied |
 | D6 | Realtime broker for multiple instances | Open | Single-instance in-memory delivery for dev only. Outbox from slice 3 | Candidates: PostgreSQL LISTEN/NOTIFY relay, Redis, RabbitMQ, Kafka |
 | D7 | Payment provider | Open | Port interface only | No invented integrations |
@@ -26,3 +26,8 @@ Status values: **Decided** · **Proposed** (default used in code; easy to change
 | D20 | E2E tooling | Proposed | Playwright (web UI with Flutter semantics + API), Flutter `integration_test` for Android | Quality agent confirms |
 | D21 | Identifiers | Proposed | UUID v7 primary keys; human order numbers separate | Data-model conventions |
 | D22 | Shopping assistant + image search (prototype `assist.js`, `api.js`) | Open | Not scheduled; size finder is in Phase 2 as `suggestSize` | Rule-based vs LLM vs vector search to be decided |
+| D23 | PostgreSQL version | Decided | PostgreSQL 18 (pinned `postgres:18.7-alpine` in compose, Testcontainers and smoke tests) | Built-in `uuidv7()` for UUID v7 keys (D21); newest stable major. Hosting must offer PG 18 (D8) |
+| D24 | GraphQL scalars | Decided | `DateTime`, `Date`, `Long` implemented in `platform.graphql.Scalars` | graphql-java-extended-scalars has no release for graphql-java 25 (Boot 4.1) |
+| D25 | `/graphql` exposure | Decided | Endpoint is public at the HTTP layer; every operation authorizes in its use case/resolver; CSRF not applied while no cookie session exists | Public queries (shop settings, catalog) need no account. Revisit CSRF with D5 |
+| D26 | Schema packaging | Decided | `backend/pom.xml` packages `contracts/graphql/*.graphqls` per implemented phase into `classpath:graphql/`; `SchemaMappingIT` fails on unmapped fields | One schema source; a contract file is packaged only when its resolvers exist |
+| D27 | GraphQL limits | Decided | Max depth 12, max complexity 500 (field count), HTTP request timeout 10 s; introspection off in `prod` | Configurable via `AURELLE_GRAPHQL_MAX_DEPTH` / `_MAX_COMPLEXITY`; revisit with load tests |

@@ -28,6 +28,20 @@ spring:
     websocket:
       path: /graphql
       connection-init-timeout: 10s
+  mvc:
+    async:
+      # Upper bound for a GraphQL HTTP request (GraphQL over MVC runs asynchronously).
+      request-timeout: 10s
+
+aurelle:
+  api:
+    version: "@project.version@"
+    contract-phase: 0
+  graphql:
+    max-depth: ${AURELLE_GRAPHQL_MAX_DEPTH:12}
+    max-complexity: ${AURELLE_GRAPHQL_MAX_COMPLEXITY:500}
+  organization:
+    default-slug: aurelle
 
 server:
   shutdown: graceful

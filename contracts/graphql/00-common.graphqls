@@ -53,7 +53,7 @@ enum ThemePreference {
 "Public, non-sensitive information about the running API."
 type ServerInfo {
   apiVersion: String!
-  "Contract phase currently frozen, e.g. 2."
+  "Highest contract phase this server implements (contracts/PHASES.md), e.g. 2."
   contractPhase: Int!
 }
 
