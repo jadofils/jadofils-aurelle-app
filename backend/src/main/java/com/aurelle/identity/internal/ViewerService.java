@@ -29,10 +29,14 @@ public class ViewerService {
     private final Authorization authorization;
     private final OrganizationDirectory organizations;
 
-    ViewerService(JdbcClient jdbc, Authorization authorization, OrganizationDirectory organizations) {
+    private final java.time.Clock clock;
+
+    ViewerService(JdbcClient jdbc, Authorization authorization, OrganizationDirectory organizations,
+            java.time.Clock clock) {
         this.jdbc = jdbc;
         this.authorization = authorization;
         this.organizations = organizations;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -140,7 +144,7 @@ public class ViewerService {
         return List.of();
     }
 
-    private static List<UserError> validate(ProfileChanges changes) {
+    private List<UserError> validate(ProfileChanges changes) {
         List<UserError> errors = new ArrayList<>();
         if (changes.displayName() != null && (changes.displayName().isBlank() || changes.displayName().length() > 120)) {
             errors.add(UserError.of("VALIDATION_FAILED", "Enter your name (up to 120 characters).", "input", "displayName"));
@@ -154,7 +158,7 @@ public class ViewerService {
         if (changes.themePreference() != null && !THEMES.contains(changes.themePreference())) {
             errors.add(UserError.of("VALIDATION_FAILED", "Choose System, Dark or Light.", "input", "themePreference"));
         }
-        if (changes.birthDate() != null && (changes.birthDate().isAfter(LocalDate.now())
+        if (changes.birthDate() != null && (changes.birthDate().isAfter(LocalDate.now(clock))
                 || changes.birthDate().isBefore(LocalDate.of(1900, 1, 2)))) {
             errors.add(UserError.of("VALIDATION_FAILED", "Enter a real date of birth.", "input", "birthDate"));
         }

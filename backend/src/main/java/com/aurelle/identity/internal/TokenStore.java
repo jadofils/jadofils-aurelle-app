@@ -76,6 +76,23 @@ class TokenStore {
             .param("id", tokenId).update() == 1;
     }
 
+    /** An open token row. Equality by id and content; {@code toString} never prints hashes. */
     record OpenToken(UUID id, UUID accountId, byte[] tokenHash, byte[] codeHash) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof OpenToken that && id.equals(that.id) && accountId.equals(that.accountId)
+                && java.util.Arrays.equals(tokenHash, that.tokenHash) && java.util.Arrays.equals(codeHash, that.codeHash);
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(id, accountId, java.util.Arrays.hashCode(tokenHash), java.util.Arrays.hashCode(codeHash));
+        }
+
+        @Override
+        public String toString() {
+            return "OpenToken[id=" + id + "]";
+        }
     }
 }

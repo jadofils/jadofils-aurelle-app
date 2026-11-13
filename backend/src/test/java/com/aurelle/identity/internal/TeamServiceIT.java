@@ -75,7 +75,8 @@ class TeamServiceIT extends IntegrationTest {
     @Test
     void overridesCanBeClearedAndStaleVersionsConflict() {
         actAs("owner@example.test");
-        UUID daniel = accountId("manager@example.test");
+        // A fresh member: tests share one database, so seeded accounts are never changed here.
+        UUID daniel = newStaffMember();
 
         assertThat(team.setOverrides(daniel, List.of(), version(daniel)).errors()).isEmpty();
         assertThat(roles.overrides(daniel)).isEmpty();
@@ -89,7 +90,7 @@ class TeamServiceIT extends IntegrationTest {
     @Test
     void staffMemberCanMoveToAnotherLocation() {
         actAs("owner@example.test");
-        UUID linda = accountId("packer@example.test");
+        UUID linda = newStaffMember();
 
         TeamService.StaffResult moved = team.update(linda, null, null, null, KIGALI, version(linda));
 
@@ -124,7 +125,25 @@ class TeamServiceIT extends IntegrationTest {
         assertThat(viewers.viewer(amina.accountId()).orElseThrow().customerProfile().displayName()).isEqualTo("Amina Okoye");
     }
 
+    @Test
+    void malformedCursorsAreBadRequests() {
+        actAs("owner@example.test");
+        String nameOnly = java.util.Base64.getUrlEncoder().encodeToString("Linda".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> team.staffMembers(10, nameOnly, null, null, null))
+            .isInstanceOfSatisfying(ApplicationException.class,
+                ex -> assertThat(ex.code()).isEqualTo(com.aurelle.common.ErrorCode.BAD_REQUEST));
+    }
+
     // ------------------------------------------------------------- helpers
+
+    private UUID newStaffMember() {
+        CurrentPrincipal owner = CurrentPrincipal.current().orElseThrow();
+        TeamService.StaffResult invited = team.invite("Temp " + UUID.randomUUID(), "temp-" + UUID.randomUUID() + "@example.test",
+            null, List.of(roleId(owner, "packer")), null);
+        assertThat(invited.errors()).isEmpty();
+        return invited.staffMember().id();
+    }
 
     private CurrentPrincipal actAs(String email) {
         return actAs(email, CurrentPrincipal.STAFF);

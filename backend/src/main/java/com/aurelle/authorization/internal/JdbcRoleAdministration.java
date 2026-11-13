@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class JdbcRoleAdministration implements RoleAdministration {
 
-    private static final Pattern ROLE_KEY = Pattern.compile("^[a-z0-9]+(-[a-z0-9]+)*$");
     private static final Set<String> EFFECTS = Set.of("ALLOW", "DENY");
 
     private final JdbcClient jdbc;
@@ -339,7 +337,7 @@ class JdbcRoleAdministration implements RoleAdministration {
 
     private List<UserError> validate(RoleInput input) {
         List<UserError> errors = new ArrayList<>();
-        if (input.key() == null || input.key().length() > 40 || !ROLE_KEY.matcher(input.key()).matches()) {
+        if (!isRoleKey(input.key())) {
             errors.add(UserError.of("VALIDATION_FAILED", "Use lowercase letters, digits and dashes, e.g. weekend-lead.", "input", "key"));
         }
         if (input.name() == null || input.name().isBlank() || input.name().length() > 80) {
@@ -347,6 +345,21 @@ class JdbcRoleAdministration implements RoleAdministration {
         }
         errors.addAll(validateGrants(input.grants(), "grants"));
         return errors;
+    }
+
+    /** Lowercase letters, digits and single inner dashes, 1-40 characters (no regex: linear, no backtracking). */
+    static boolean isRoleKey(String key) {
+        if (key == null || key.isEmpty() || key.length() > 40 || key.startsWith("-") || key.endsWith("-")
+                || key.contains("--")) {
+            return false;
+        }
+        for (int i = 0; i < key.length(); i++) {
+            char c = key.charAt(i);
+            if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private List<UserError> validateGrants(List<GrantInput> grants, String field) {

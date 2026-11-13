@@ -115,7 +115,7 @@ public class AuthService implements SessionAuthenticator {
         }
         UUID accountId = accounts.insertCustomer(new NewCustomer(org, command.displayName().trim(), email, phone,
             hasher.hash(command.password()), command.marketingConsent(), blankToNull(command.preferredLocale()),
-            command.shopFor().toArray(String[]::new), properties.termsVersion()));
+            command.shopFor(), properties.termsVersion()));
         authorization.bindSystemRole(accountId, org, "customer", null);
         if (email != null) {
             issueEmailVerification(accountId, email, command.displayName().trim());

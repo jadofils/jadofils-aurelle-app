@@ -24,7 +24,8 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @RecordApplicationEvents
 class AuthServiceIT extends IntegrationTest {
 
-    private static final String PASSWORD = "Correct-Horse-Battery-9";
+    /** Generated per run: no credential literal in the code. */
+    private static final String PASSWORD = "Pw-" + UUID.randomUUID();
 
     @Autowired
     AuthService auth;

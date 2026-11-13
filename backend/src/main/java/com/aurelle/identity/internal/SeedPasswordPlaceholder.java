@@ -22,6 +22,7 @@ class SeedPasswordPlaceholder implements FlywayConfigurationCustomizer {
 
     static final String PLACEHOLDER = "seed_password_hash";
     private static final Logger log = LoggerFactory.getLogger(SeedPasswordPlaceholder.class);
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final PasswordHasher hasher;
     private final String seedPassword;
@@ -42,7 +43,7 @@ class SeedPasswordPlaceholder implements FlywayConfigurationCustomizer {
         }
         log.warn("AURELLE_SEED_PASSWORD is not set: seeded accounts get a random password and cannot sign in");
         byte[] random = new byte[32];
-        new SecureRandom().nextBytes(random);
+        RANDOM.nextBytes(random);
         return Base64.getEncoder().encodeToString(random);
     }
 }

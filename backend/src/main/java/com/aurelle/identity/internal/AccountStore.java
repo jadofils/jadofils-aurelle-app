@@ -74,7 +74,7 @@ class AccountStore {
             .param("org", customer.organizationId())
             .param("account", accountId)
             .param("name", customer.displayName())
-            .param("shopFor", customer.shopFor())
+            .param("shopFor", customer.shopFor().toArray(String[]::new))
             .update();
         return accountId;
     }
@@ -156,6 +156,6 @@ class AccountStore {
     }
 
     record NewCustomer(UUID organizationId, String displayName, String email, String phone, String passwordHash,
-            boolean marketingConsent, String preferredLocale, String[] shopFor, String termsVersion) {
+            boolean marketingConsent, String preferredLocale, java.util.List<String> shopFor, String termsVersion) {
     }
 }

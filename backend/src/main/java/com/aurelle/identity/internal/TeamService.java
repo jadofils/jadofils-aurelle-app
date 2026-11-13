@@ -353,6 +353,9 @@ public class TeamService {
         }
         try {
             String[] parts = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8).split("\u0000", 2);
+            if (parts.length != 2) {
+                throw new IllegalArgumentException("cursor needs a name and an id");
+            }
             UUID.fromString(parts[1]);
             return parts;
         } catch (RuntimeException ex) {

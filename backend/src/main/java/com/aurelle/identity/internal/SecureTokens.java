@@ -71,6 +71,22 @@ class SecureTokens {
         return a != null && b != null && MessageDigest.isEqual(a, b);
     }
 
+    /** A token and its hash. Content-based equality; {@code toString} never prints the token. */
     record Issued(String token, byte[] hash) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Issued that && token.equals(that.token) && java.util.Arrays.equals(hash, that.hash);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * token.hashCode() + java.util.Arrays.hashCode(hash);
+        }
+
+        @Override
+        public String toString() {
+            return "Issued[token=***]";
+        }
     }
 }

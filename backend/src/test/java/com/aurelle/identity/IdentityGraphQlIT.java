@@ -17,7 +17,8 @@ import org.springframework.web.client.RestClient;
 class IdentityGraphQlIT extends IntegrationTest {
 
     private static final String ORIGIN = "http://localhost:8081";
-    private static final String PASSWORD = "Correct-Horse-Battery-9";
+    /** Generated per run: no credential literal in the code. */
+    private static final String PASSWORD = "Pw-" + UUID.randomUUID();
     private static final String VIEWER = "{ viewer { id kind email emailVerified phone phoneVerified displayName "
         + "themePreference preferredLocale permissions customerProfile { id displayName shopFor marketingConsent version } "
         + "staffProfile { id displayName jobTitle defaultLocation { id name kind active } } } }";
@@ -347,8 +348,12 @@ class IdentityGraphQlIT extends IntegrationTest {
             .get("version")).longValue();
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
-    org.springframework.jdbc.core.simple.JdbcClient jdbc;
+    private final org.springframework.jdbc.core.simple.JdbcClient jdbc;
+
+    IdentityGraphQlIT(@org.springframework.beans.factory.annotation.Autowired
+            org.springframework.jdbc.core.simple.JdbcClient jdbc) {
+        this.jdbc = jdbc;
+    }
 
     private String id(String email) {
         return jdbc.sql("select id::text from user_account where email = ?").param(email).query(String.class).single();

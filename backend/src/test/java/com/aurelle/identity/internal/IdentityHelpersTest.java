@@ -146,6 +146,27 @@ class IdentityHelpersTest {
     }
 
     @Test
+    void tokenRecordsCompareByContentAndNeverPrintSecrets() {
+        SecureTokens.Issued a = new SecureTokens.Issued("tok", SecureTokens.sha256("tok"));
+        SecureTokens.Issued same = new SecureTokens.Issued("tok", SecureTokens.sha256("tok"));
+        SecureTokens.Issued other = new SecureTokens.Issued("tok", SecureTokens.sha256("x"));
+        UUID id = UUID.randomUUID();
+        UUID account = UUID.randomUUID();
+        TokenStore.OpenToken t1 = new TokenStore.OpenToken(id, account, SecureTokens.sha256("a"), null);
+        TokenStore.OpenToken t2 = new TokenStore.OpenToken(id, account, SecureTokens.sha256("a"), null);
+        TokenStore.OpenToken t3 = new TokenStore.OpenToken(id, account, SecureTokens.sha256("b"), null);
+
+        assertThat(a).isEqualTo(same).hasSameHashCodeAs(same).isNotEqualTo(other).isNotEqualTo("tok");
+        assertThat(new SecureTokens.Issued("other", a.hash())).isNotEqualTo(a);
+        assertThat(new SecureTokens.Issued("s3cr3t-value", a.hash()).toString()).doesNotContain("s3cr3t");
+        assertThat(t1).isEqualTo(t2).hasSameHashCodeAs(t2).isNotEqualTo(t3).isNotEqualTo("x");
+        assertThat(new TokenStore.OpenToken(UUID.randomUUID(), account, t1.tokenHash(), null)).isNotEqualTo(t1);
+        assertThat(new TokenStore.OpenToken(id, UUID.randomUUID(), t1.tokenHash(), null)).isNotEqualTo(t1);
+        assertThat(new TokenStore.OpenToken(id, account, t1.tokenHash(), SecureTokens.sha256("c"))).isNotEqualTo(t1);
+        assertThat(t1.toString()).isEqualTo("OpenToken[id=" + id + "]");
+    }
+
+    @Test
     void missingKeyFallsBackToARandomOne() {
         byte[] tokenHash = SecureTokens.sha256("t");
         SecureTokens blank = new SecureTokens(" ", new SecureRandom());
