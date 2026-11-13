@@ -34,7 +34,7 @@ promotion-guard (PRs only)                                         └─ push t
 | frontend | missing `pubspec.lock`, `dart format` diff, `flutter analyze --fatal-infos`, any test, line coverage < 95 % (`ci/scripts/check-lcov.sh`) |
 | secret-scan | any gitleaks finding in history |
 | sast | any Semgrep finding (Java, secrets, Dockerfile, GitHub Actions rules) |
-| sonar | SonarQube Cloud quality gate failed (`sonar.qualitygate.wait=true`) |
+| sonar | SonarQube Cloud quality gate failed (`sonar.qualitygate.wait=true`). Runs on PRs and pushes to `main` only (plan limit) |
 | promotion-guard | PR source branch not allowed for its target |
 | images | hadolint errors, image smoke test (`ci/scripts/smoke-images.sh`: non-root, readiness, GraphQL, web security headers), Trivy fixable HIGH/CRITICAL |
 | deploy-* | deploy hook failure, post-deploy checks (`ci/scripts/e2e.sh`) |
@@ -54,7 +54,7 @@ Images are pushed to GHCR as `ghcr.io/jadofils/aurelle-backend:<sha>` and `ghcr.
 
 ## SonarQube Cloud
 - Organization `jadofils`, project `jadofils_jadofils-aurelle-app`, configuration in [`sonar-project.properties`](../sonar-project.properties). A single project covers the backend (Maven, Java 21) and the frontend (Flutter, Dart). Scope: production code `backend/src/main`, `frontend/lib`, `ci/`, `.github/`, Dockerfiles; test code `backend/src/test`, `frontend/test`, `frontend/integration_test`, `tests/`; excluded: build output, Flutter platform folders, generated code, `docs/`, `contracts/`.
-- Branches: `main`, `staging` and `testing` are long-lived in SonarQube Cloud (each has its own history and new-code baseline); `feature/*`, `fix/*`, `chore/*` branches and PRs are short-lived and compared with their target.
+- **What gets analysed:** the current SonarQube Cloud plan only allows **pull requests and the `main` branch** (other branches fail with "Organization is not allowed to access data from non main branches"). So the `sonar` job runs on every PR (into `testing`, `staging` or `main`) and on pushes to `main`; pushes to `testing`, `staging` and work branches skip it. That is safe because code only reaches those branches through a PR whose gate passed (make `sonar` a required check in branch protection). The project setting `sonar.branch.longLivedBranches.regex=(main|staging|testing)` is already in place for a plan that allows branch analysis.
 - Repository secret `SONAR_TOKEN` is set (never commit it; locally it lives in the git-ignored `.env`).
 - **Automatic Analysis must stay off** (Administration → Analysis Method), because the analysis runs from CI. It is ineligible anyway because Dart needs CI-based analysis.
 - The project uses the built-in **Sonar way** gate (new code: coverage ≥ 80 %, duplication ≤ 3 %, A ratings, hotspots reviewed). The current plan does not allow assigning a custom gate to the project, so the **95 % line / 90 % branch target is enforced in the backend and frontend jobs**, which fail before Sonar is reached. If the plan is upgraded, create gate "Aurelle 95" (see `.claude/rules/quality-gates-ci.md`) and assign it.

@@ -133,7 +133,14 @@ jobs:
   sonar:
     name: SonarQube Cloud analysis + quality gate
     needs: [backend, frontend]
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # The SonarQube Cloud plan only allows analysing pull requests and the main branch
+    # ("Organization is not allowed to access data from non main branches"). Code reaches
+    # testing/staging only through a PR whose gate passed, so branch pushes skip this job.
+    if: >-
+      ${{ !cancelled() && (
+        (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+        || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -170,7 +177,13 @@ jobs:
   # ---------------------------------------------------------------- images
   images:
     name: Build images, smoke test, Trivy
-    needs: [sonar, secret-scan, sast]
+    needs: [backend, frontend, sonar, secret-scan, sast]
+    # Every check must pass; Sonar may be skipped on branch pushes (see the sonar job), never failed.
+    if: >-
+      ${{ !cancelled()
+        && needs.backend.result == 'success' && needs.frontend.result == 'success'
+        && needs.secret-scan.result == 'success' && needs.sast.result == 'success'
+        && (needs.sonar.result == 'success' || needs.sonar.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -257,7 +270,7 @@ jobs:
   deploy-testing:
     name: Deploy to testing + E2E
     needs: images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/testing'
+    if: ${{ !cancelled() && needs.images.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/testing' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -278,7 +291,7 @@ jobs:
   deploy-staging:
     name: Deploy to staging + E2E
     needs: images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    if: ${{ !cancelled() && needs.images.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/staging' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -299,7 +312,7 @@ jobs:
   deploy-production:
     name: Deploy to production (requires approval)
     needs: images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && needs.images.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
