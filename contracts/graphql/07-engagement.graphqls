@@ -1,0 +1,13 @@
+# Aurelle GraphQL contract — customer engagement (reviews, wishlist, loyalty, promotions).
+# Status: draft (phase 7; the full SDL is written at phase start). Data model: ../data-model/07-customer-engagement.md.
+# Holds the rating fields moved out of 02-catalog.
+
+extend type Product {
+  "Average of published reviews (1.0–5.0); null without reviews."
+  ratingAverage: Float
+  ratingCount: Int!
+}
+
+extend enum ProductSortField {
+  RATING
+}

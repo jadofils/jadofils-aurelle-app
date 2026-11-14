@@ -20,7 +20,7 @@ Order of work inside a phase: BE moves the contract to `review` → FE and QA co
 
 ## Phase 2 — Catalog and media
 **BE:** categories, brands, product types, audiences, size scales, products, colours, variants (SKU), media (signed upload, validation, front/back/cut-out roles), size guides; public browse/search with cursor pagination and filters (audience, category, type, price, colour, size, in-stock); staff product CRUD with optimistic versioning; cost visible only with permission.
-**FE:** storefront home ("Walk the rail", audience tabs, category grids 5 per page), product page (turntable, colour/size pickers, size finder, stock message), search with filters, admin product list/editor with photo upload, wishlist (local for guests until Phase 7 sync).
+**FE:** storefront home ("Walk the rail", audience tabs, category grids 5 per page), product page (turntable, colour/size pickers, size finder; the stock message arrives with Phase 3 `stockState`), search with filters, admin product list/editor with photo upload, wishlist (local for guests until Phase 7 sync).
 **QA:** browse/search load test (`load` profile) against ≥ 10 000 products and 100 000 variants; E2E guest browse; upload abuse tests.
 **Exit:** public catalog browsing p95 within budget; products manageable by staff.
 

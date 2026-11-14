@@ -13,7 +13,7 @@ Status values: **Decided** · **Proposed** (default used in code; easy to change
 | D7 | Payment provider | Open | Port interface only | No invented integrations |
 | D8 | Cloud / deployment | Open | Container images in GHCR, health probes on `/actuator/health/{liveness,readiness}`; deploy via per-environment `DEPLOY_WEBHOOK_URL` + `BASE_URL` until a host is chosen | Three environments exist in GitHub: testing, staging, production |
 | D9 | Countries / address hierarchy / GIS | Open | Free-text + optional coordinates | The prototype implies Rwanda-style province→village, which needs confirming |
-| D10 | Image storage | Open | Storage port + signed upload URL | S3-compatible object storage likely |
+| D10 | Image storage | Decided | S3-compatible object storage behind a `MediaStorage` port; MinIO (container) for dev, tests and testing; signed PUT upload (15 min), server-side checks (sniffed type, 10 MB, 8000 px, decompression-bomb guard), metadata/EXIF stripped, renditions 160–1600 px | Production provider (AWS S3, Cloudflare R2, …) is a configuration change; it follows the hosting choice (D8). Decided 2026-11-14 (backend) |
 | D11 | Tax / accounting policy, currency | Open | Money as integer minor units + ISO-4217 code | |
 | D12 | Public SEO surface | Proposed | Separate crawlable landing/catalog site later; authenticated app stays in Flutter | Flutter Web is weak for SEO |
 | D13 | Flutter state management | Decided | Riverpod (`flutter_riverpod` 3.x) | Required by the project brief |
