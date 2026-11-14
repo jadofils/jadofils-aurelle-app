@@ -40,7 +40,7 @@ Initial codes (backend adds more per phase, here):
 
 Rate limits on `signIn`, `signUp`, `requestPasswordReset` and `resendEmailVerification` return the GraphQL error `RATE_LIMITED` with `extensions.retryAfterSeconds`.
 
-### Phase 2 (catalog and media), status: review
+### Phase 2 (catalog and media), status: frozen 2026-11-14
 | Code | Returned by | Meaning |
 | --- | --- | --- |
 | `SLUG_TAKEN` | `upsertProduct`, `upsertCategory`, `upsertBrand` | Another product/category/brand already uses this URL name |
