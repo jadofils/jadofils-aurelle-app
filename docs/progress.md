@@ -6,7 +6,7 @@ Each agent updates its own cells. Status: `todo` · `doing` · `blocked (by …)
 | --- | --- | --- | --- | --- | --- |
 | 0 Foundations | frozen | done (PR #2 merged; coverage gate, schema packaging, image) | todo | todo | |
 | 1 Identity + authorization | frozen | done (PR #4 merged into testing; all Phase 1 operations served) | todo | todo | |
-| 2 Catalog + media | review | doing (contract review: `feature/catalog-contract`) | todo | todo | |
+| 2 Catalog + media | frozen | doing (implementation: `feature/catalog-media`) | todo | todo | |
 | 3 Inventory | draft | todo | todo | todo | |
 | 4 Cart, checkout, orders | draft | todo | todo | todo | |
 | 5 Payments | blocked (D7) | todo | todo | todo | |

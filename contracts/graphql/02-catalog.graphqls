@@ -1,4 +1,4 @@
-# Aurelle GraphQL contract — catalog and media. Status: review (phase 2).
+# Aurelle GraphQL contract — catalog and media. Status: frozen 2026-11-14 (phase 2). Changes: ../CHANGELOG.md; breaking changes need a proposal.
 # Data model: ../data-model/02-catalog-media.md. Errors: ../errors.md.
 # Public reads need no sign-in: customers only ever see ACTIVE, not hidden, launched products.
 # Stock state arrives in 03-inventory.graphqls and ratings in 07-engagement.graphqls (extend type).
@@ -214,11 +214,19 @@ input SizeSuggestionInput {
   usualSize: String
 }
 
+enum SizeConfidence {
+  "Measurements fall clearly inside one size."
+  HIGH
+  "Between two sizes, or based on a usual size only."
+  MEDIUM
+  "Too little information; treat as a rough guess."
+  LOW
+}
+
 type SizeSuggestion {
   "Null when there is not enough information."
   size: SizeValue
-  "HIGH, MEDIUM or LOW."
-  confidence: String!
+  confidence: SizeConfidence!
   explanation: String!
 }
 

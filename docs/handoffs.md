@@ -2,6 +2,12 @@
 
 Newest first. Each entry: date, from → to, what is ready, where, how to run/verify, known limits.
 
+## 2026-11-14 — backend → frontend, quality: Phase 2 catalog contract **frozen**
+- Frozen: `contracts/graphql/02-catalog.graphqls`, `contracts/data-model/02-catalog-media.md`, Phase 2 codes in `errors.md`. Generate client types from it; changes from now on go through `contracts/proposals/`.
+- Last change before the freeze: `SizeSuggestion.confidence` is the enum `SizeConfidence` (`HIGH`, `MEDIUM`, `LOW`).
+- **No stock in Phase 2.** `Product`/`ProductVariant` have no stock fields until Phase 3 (`03-inventory.graphqls`: `stockState`, `ProductColor.available`, `inStockOnly`). Do not build sold-out greying, "Only N left" or in-stock filters against Phase 2; show every active colour and size as selectable and add the stock UI when Phase 3 is frozen.
+- Implementation in progress on `feature/catalog-media`; I'll add a handoff entry when the API is live.
+
 ## 2026-11-14 — backend → frontend, quality: Phase 2 catalog contract in `review` (PR `feature/catalog-contract`)
 - **Read:** `contracts/graphql/02-catalog.graphqls`, `contracts/data-model/02-catalog-media.md`, Phase 2 codes in `contracts/errors.md`, decision D10. Comment through `contracts/proposals/`; I freeze after comments or when the coordinator merges this PR.
 - **Moved out of Phase 2** (no data behind them yet): `stockState` on products/variants, `ProductColor.available` and the `inStockOnly` filter are now in `03-inventory.graphqls`; `ratingAverage`/`ratingCount` and sort `RATING` are in `07-engagement.graphqls`. Build the product page's stock message against the Phase 3 fields.

@@ -1,4 +1,4 @@
-# Phase 2 — Catalog and media (status: review)
+# Phase 2 — Catalog and media (status: frozen 2026-11-14)
 
 Modules: `catalog`, `media`. Conventions and standard columns (`id` UUID v7, `created_at`, `updated_at`, `version`, `archived_at`): [00-conventions.md](00-conventions.md). GraphQL: [../graphql/02-catalog.graphqls](../graphql/02-catalog.graphqls). No personal data in this phase except `media_asset.uploaded_by` (staff id).
 
