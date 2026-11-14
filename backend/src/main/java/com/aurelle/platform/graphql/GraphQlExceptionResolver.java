@@ -2,6 +2,7 @@ package com.aurelle.platform.graphql;
 
 import com.aurelle.common.ApplicationException;
 import com.aurelle.common.ErrorCode;
+import com.aurelle.common.RateLimitedException;
 import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
@@ -39,6 +40,9 @@ class GraphQlExceptionResolver extends DataFetcherExceptionResolverAdapter {
         if (ex instanceof ApplicationException app) {
             code = app.code();
             message = app.getMessage();
+            if (app instanceof RateLimitedException limited) {
+                extensions.put("retryAfterSeconds", limited.retryAfterSeconds());
+            }
         } else {
             code = codeFor(ex);
             message = code.defaultMessage();

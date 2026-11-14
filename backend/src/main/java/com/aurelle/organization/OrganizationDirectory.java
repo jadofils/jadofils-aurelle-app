@@ -11,4 +11,10 @@ public interface OrganizationDirectory {
 
     /** The default organization. Fails fast if it is missing (a broken deployment, not a user error). */
     OrganizationSummary defaultOrganization();
+
+    /** Locations of an organization (not archived), active first, then by name. */
+    java.util.List<LocationSummary> locations(java.util.UUID organizationId);
+
+    /** One location by id, if it exists and is not archived. */
+    java.util.Optional<LocationSummary> location(java.util.UUID locationId);
 }

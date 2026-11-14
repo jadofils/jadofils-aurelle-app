@@ -18,7 +18,7 @@ class ShopSettingsServiceTest {
     @Test
     void combinesShopSettingsWithOrganizationContacts() {
         var settings = new ShopSettings("Aurelle", "USD", "$", 15_000L, 30, "Made to be worn on repeat.", true);
-        var service = new ShopSettingsService(() -> ORG, id -> id.equals(ORG.id()) ? Optional.of(settings) : Optional.empty());
+        var service = new ShopSettingsService(new Directory(), id -> id.equals(ORG.id()) ? Optional.of(settings) : Optional.empty());
 
         PublicShopSettings result = service.publicSettings();
 
@@ -29,7 +29,7 @@ class ShopSettingsServiceTest {
     @Test
     void freeShippingIsAbsentWhenNoThresholdIsSet() {
         var settings = new ShopSettings("Aurelle", "USD", null, null, 14, null, false);
-        var service = new ShopSettingsService(() -> ORG, id -> Optional.of(settings));
+        var service = new ShopSettingsService(new Directory(), id -> Optional.of(settings));
 
         PublicShopSettings result = service.publicSettings();
 
@@ -37,9 +37,27 @@ class ShopSettingsServiceTest {
         assertThat(result.guestCheckoutEnabled()).isFalse();
     }
 
+    /** Test double: only the default organization is used by the service. */
+    private static final class Directory implements com.aurelle.organization.OrganizationDirectory {
+        @Override
+        public OrganizationSummary defaultOrganization() {
+            return ORG;
+        }
+
+        @Override
+        public java.util.List<com.aurelle.organization.LocationSummary> locations(UUID organizationId) {
+            return java.util.List.of();
+        }
+
+        @Override
+        public Optional<com.aurelle.organization.LocationSummary> location(UUID locationId) {
+            return Optional.empty();
+        }
+    }
+
     @Test
     void failsFastWhenSettingsAreMissing() {
-        var service = new ShopSettingsService(() -> ORG, id -> Optional.empty());
+        var service = new ShopSettingsService(new Directory(), id -> Optional.empty());
 
         assertThatThrownBy(service::publicSettings)
             .isInstanceOf(IllegalStateException.class)
