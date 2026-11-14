@@ -1,0 +1,29 @@
+# Aurelle GraphQL contract — inventory. Status: draft (phase 3; the full SDL is written at phase start).
+# Data model: ../data-model/03-inventory.md. Holds the stock fields moved out of 02-catalog so that
+# Phase 2 serves no field without data behind it.
+
+enum StockState {
+  IN_STOCK
+  "At or below the low-stock threshold ('Only N left in this size')."
+  LOW_STOCK
+  SOLD_OUT
+}
+
+extend type ProductVariant {
+  "Public availability; exact counts are staff-only."
+  stockState: StockState!
+}
+
+extend type ProductColor {
+  "False when every size in this colour is sold out (cannot be picked)."
+  available: Boolean!
+}
+
+extend type Product {
+  "SOLD_OUT when every active variant is sold out."
+  stockState: StockState!
+}
+
+extend input ProductFilter {
+  inStockOnly: Boolean = false
+}

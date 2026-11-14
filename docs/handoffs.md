@@ -2,6 +2,13 @@
 
 Newest first. Each entry: date, from → to, what is ready, where, how to run/verify, known limits.
 
+## 2026-11-14 — backend → frontend, quality: Phase 2 catalog contract in `review` (PR `feature/catalog-contract`)
+- **Read:** `contracts/graphql/02-catalog.graphqls`, `contracts/data-model/02-catalog-media.md`, Phase 2 codes in `contracts/errors.md`, decision D10. Comment through `contracts/proposals/`; I freeze after comments or when the coordinator merges this PR.
+- **Moved out of Phase 2** (no data behind them yet): `stockState` on products/variants, `ProductColor.available` and the `inStockOnly` filter are now in `03-inventory.graphqls`; `ratingAverage`/`ratingCount` and sort `RATING` are in `07-engagement.graphqls`. Build the product page's stock message against the Phase 3 fields.
+- **Added:** `category(slug)`, `sizeScales`, `sizeGuides`, `mediaStatus` (poll after upload), `upsertBrand`; `Product.tags/season/countryOfOrigin/sizeScale/publishedAt`; `version` on categories and brands; `Image.url(width)` rounds to 160/320/640/1024/1600.
+- **Uploads:** `requestMediaUpload` → PUT the bytes to `uploadUrl` with the given headers (≤ 10 MB, jpeg/png/webp/avif) → poll `mediaStatus` until READY → `attachProductMedia` with alt text. Publishing (ACTIVE) needs a PRIMARY photo with alt text.
+- **Quality:** the phase exit needs the browse/search load test against ≥ 10 000 products / 100 000 variants; the seeded catalogue (20 prototype products) is for functional tests only.
+
 ## 2026-11-13 — backend → frontend, quality: Phase 1 API is live (branch `feature/identity-auth`)
 - **Served now** (`serverInfo.contractPhase` = 1): every query and mutation in `contracts/graphql/01-identity.graphqls`. `SchemaMappingIT` proves each field has a resolver.
 - **Sign in as seeded users** (dev/test/testing/staging): `owner@`, `manager@`, `packer@example.test` (staff), `amina@example.test` (customer, verified), `kofi@` (inactive), `nia@` (locked), `invited@` (invite pending). Password = the `AURELLE_SEED_PASSWORD` of that environment.

@@ -39,3 +39,15 @@ Initial codes (backend adds more per phase, here):
 | `UNKNOWN_PERMISSION` | `upsertRole`, `setStaffPermissionOverrides` | A permission key is not in the catalogue |
 
 Rate limits on `signIn`, `signUp`, `requestPasswordReset` and `resendEmailVerification` return the GraphQL error `RATE_LIMITED` with `extensions.retryAfterSeconds`.
+
+### Phase 2 (catalog and media), status: review
+| Code | Returned by | Meaning |
+| --- | --- | --- |
+| `SLUG_TAKEN` | `upsertProduct`, `upsertCategory`, `upsertBrand` | Another product/category/brand already uses this URL name |
+| `SKU_TAKEN` | `upsertProduct` | A variant SKU or barcode is already used |
+| `INVALID_SIZE` | `upsertProduct` | A size label is not in the product's size scale |
+| `INVALID_VARIANT` | `upsertProduct` | A variant uses a colour or size that is not on the product |
+| `CATEGORY_CYCLE` | `upsertCategory` | The parent would make a loop or exceed depth 3 |
+| `ALT_TEXT_REQUIRED` | `upsertProduct` (status ACTIVE) | Publishing needs a PRIMARY photo with alt text |
+| `MEDIA_NOT_READY` | `attachProductMedia` | The upload is still being checked or was rejected |
+| `UPLOAD_REJECTED` | `requestMediaUpload`, `mediaStatus` | Wrong type, larger than 10 MB, or unreadable image |

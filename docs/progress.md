@@ -4,9 +4,9 @@ Each agent updates its own cells. Status: `todo` · `doing` · `blocked (by …)
 
 | Phase | Contract | Backend | Frontend | Quality | Closed |
 | --- | --- | --- | --- | --- | --- |
-| 0 Foundations | review (00-common, errors) | doing (PR `backend/phase-0`) | todo | todo | |
-| 1 Identity + authorization | review | done, PR `feature/identity-auth` (all Phase 1 operations served; awaiting frontend/quality review) | todo | todo | |
-| 2 Catalog + media | draft | todo | todo | todo | |
+| 0 Foundations | frozen | done (PR #2 merged; coverage gate, schema packaging, image) | todo | todo | |
+| 1 Identity + authorization | frozen | done (PR #4 merged into testing; all Phase 1 operations served) | todo | todo | |
+| 2 Catalog + media | review | doing (contract review: `feature/catalog-contract`) | todo | todo | |
 | 3 Inventory | draft | todo | todo | todo | |
 | 4 Cart, checkout, orders | draft | todo | todo | todo | |
 | 5 Payments | blocked (D7) | todo | todo | todo | |
